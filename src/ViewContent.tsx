@@ -1,6 +1,8 @@
-import { For, Show, createEffect, onCleanup } from "solid-js";
+import { For, Show, createEffect, onCleanup, createSignal } from "solid-js";
 import CanvasVideo from "./CanvasVideo";
-import { setSubscription, viewedMedias } from "./shared";
+import { setSubscription, settings, viewedMedias } from "./shared";
+import { FaSolidObjectGroup } from "solid-icons/fa";
+import ArkSwitch from "./ark/ArkSwitch";
 
 const GAP_SIZE = '8px';
 
@@ -16,6 +18,7 @@ const chunk = <T,>(arr: T[]): T[][] => {
 }
 
 export default function ViewContent() {
+    const [showDetections, setShowDetections] = createSignal(true);
 
 
     // Handle subscriptions
@@ -55,26 +58,40 @@ export default function ViewContent() {
                     when={rowsOfMedias().length > 0}
                     fallback={<div class="flex justify-center items-center h-full">No camera selected</div>}
                 >
-                    <div class="flex flex-col h-full w-full" style={{ gap: GAP_SIZE }}>
-                        <For each={rowsOfMedias()}>
-                            {(row, rowIndex) => (
-                                <div
-                                    class="flex flex-1"
-                                    style={{
-                                        'justify-content': rowIndex() === rowsOfMedias().length - 1 && row.length < cols() ? 'center' : 'flex-start',
-                                        gap: GAP_SIZE,
-                                    }}
-                                >
-                                    <For each={row}>
-                                        {(media) => {
-                                            return <div style={{ width: `calc((100% - (${cols() - 1} * ${GAP_SIZE})) / ${cols()})`, height: '100%' }}>
-                                                <CanvasVideo stream_id={media.stream_id} file_name={media.file_name} />
-                                            </div>
-                                        }}
-                                    </For>
+                    <div class="h-full w-full flex flex-col ">
+                        <div class="flex-none flex items-center space-x-2 py-2 px-4 bg-neu-900 rounded-2xl border border-neu-800">
+                            <div class="flex-1 text-sm text-neu-400">Viewing {viewedMedias().length} streams</div>
+                            <Show when={settings()['object_detection_enabled'] === 'true'}>
+                                <div>
+                                    <ArkSwitch
+                                        label="Show detection boxes"
+                                        checked={showDetections}
+                                        onCheckedChange={(e) => setShowDetections(e.checked)}
+                                    />
                                 </div>
-                            )}
-                        </For>
+                            </Show>
+                        </div>
+                        <div class="flex-1 flex flex-col" style={{ gap: GAP_SIZE }}>
+                            <For each={rowsOfMedias()}>
+                                {(row, rowIndex) => (
+                                    <div
+                                        class="flex flex-1"
+                                        style={{
+                                            'justify-content': rowIndex() === rowsOfMedias().length - 1 && row.length < cols() ? 'center' : 'flex-start',
+                                            gap: GAP_SIZE,
+                                        }}
+                                    >
+                                        <For each={row}>
+                                            {(media) => {
+                                                return <div style={{ width: `calc((100% - (${cols() - 1} * ${GAP_SIZE})) / ${cols()})`, height: '100%' }}>
+                                                    <CanvasVideo stream_id={media.stream_id} file_name={media.file_name} showDetections={showDetections} />
+                                                </div>
+                                            }}
+                                        </For>
+                                    </div>
+                                )}
+                            </For>
+                        </div>
                     </div>
                 </Show>
             </div>

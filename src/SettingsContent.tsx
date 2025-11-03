@@ -1,21 +1,15 @@
-import { createSignal, onMount } from "solid-js";
+import { createSignal, onMount, createEffect } from "solid-js";
 import LayoutContent from "./LayoutContent";
 import ArkSwitch from "./ark/ArkSwitch";
-import { toaster } from "./ark/ArkToast";
+import { saveSettings, settings } from "./shared";
 
 export default function SettingsContent() {
     const [objectDetection, setObjectDetection] = createSignal(false);
 
-    onMount(async () => {
-        try {
-            const response = await fetch("/settings");
-            const data = await response.json();
-            const setting = data.find((s: any) => s.key === 'object_detection_enabled');
-            if (setting) {
-                setObjectDetection(setting.value === 'true');
-            }
-        } catch (error) {
-            console.error("Error fetching settings:", error);
+    createEffect(() => {
+        const objDetSetting = settings()['object_detection_enabled'];
+        if (objDetSetting !== undefined) {
+            setObjectDetection(objDetSetting === 'true');
         }
     });
 
@@ -24,28 +18,7 @@ export default function SettingsContent() {
     };
 
     const handleSaveSettings = async () => {
-        toaster.promise(async () => {
-            await fetch("/settings", {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ key: 'object_detection_enabled', value: objectDetection().toString() }),
-            });
-        }, {
-            loading: {
-                title: 'Saving...',
-                description: 'Your settings are being saved.',
-            },
-            success: {
-                title: 'Success!',
-                description: 'Settings have been saved successfully.',
-            },
-            error: {
-                title: 'Failed',
-                description: 'There was an error saving your settings. Please try again.',
-            },
-        })
+        await saveSettings({ 'object_detection_enabled': objectDetection().toString() });
     };
 
     return <LayoutContent title="Settings">

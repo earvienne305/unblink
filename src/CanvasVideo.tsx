@@ -1,6 +1,6 @@
 import { createResizeObserver } from "@solid-primitives/resize-observer";
 import { FaSolidSpinner } from "solid-icons/fa";
-import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, onMount, Show, type Accessor } from "solid-js";
 import { newMessage } from "./video/connection";
 import type { DetectionObject, ServerToClientMessage } from "~/shared";
 import { subscription } from "./shared";
@@ -15,6 +15,7 @@ class MjpegPlayer {
     private sourceWidth = 0;
     private sourceHeight = 0;
     private onDrawingStateChange: (isDrawing: boolean) => void;
+    public _showDetections = true;
 
     constructor(
         canvas: HTMLCanvasElement,
@@ -60,7 +61,7 @@ class MjpegPlayer {
         }
     }
 
-    private renderLoop = () => {
+    private render = (one_time: boolean = false) => {
         if (this.isDestroyed) return;
 
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -97,10 +98,15 @@ class MjpegPlayer {
             );
             this.ctx.restore();
 
-            this.drawDetections(geom);
+            if (this._showDetections) {
+                this.drawDetections(geom);
+            }
         }
 
-        this.animationFrameId = requestAnimationFrame(this.renderLoop);
+        if (!one_time) {
+            this.animationFrameId = requestAnimationFrame(() => this.render());
+        }
+
     }
 
     private calculateRenderGeometry() {
@@ -194,7 +200,7 @@ class MjpegPlayer {
     }
 
     private startRenderLoop() {
-        this.animationFrameId = requestAnimationFrame(this.renderLoop);
+        this.animationFrameId = requestAnimationFrame(() => this.render());
     }
 
     public updateCanvasSize(width: number, height: number) {
@@ -212,14 +218,26 @@ class MjpegPlayer {
         }
         console.log("MjpegPlayer destroyed.");
     }
+
+    set showDetections(value: boolean) {
+        this._showDetections = value;
+        // Draw immediately to reflect change
+        this.render(true);
+    }
 }
 
-export default function CanvasVideo(props: { stream_id: string, file_name?: string }) {
+export default function CanvasVideo(props: { stream_id: string, file_name?: string, showDetections: Accessor<boolean> }) {
     const [canvasRef, setCanvasRef] = createSignal<HTMLCanvasElement>();
     const [containerRef, setContainerRef] = createSignal<HTMLDivElement>();
     const [isDrawing, setIsDrawing] = createSignal(false);
 
     let player: MjpegPlayer | null = null;
+
+    createEffect(() => {
+        const sd = props.showDetections();
+        if (!player) return;
+        player.showDetections = sd;
+    });
 
     createEffect(() => {
         const canvas = canvasRef();

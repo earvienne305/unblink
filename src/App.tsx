@@ -4,7 +4,7 @@ import HistoryContent from './HistoryContent';
 import HomeContent from './HomeContent';
 import MomentsContent from './MomentsContent';
 import SearchContent from './SearchContent';
-import { conn, setConn, subscription, tabId } from './shared';
+import { conn, fetchCameras, fetchSettings, setConn, subscription, tabId } from './shared';
 import SideBar from './SideBar';
 import { connectWebSocket } from './video/connection';
 import ViewContent from './ViewContent';
@@ -15,6 +15,8 @@ export default function App() {
     onMount(() => {
         const conn = connectWebSocket();
         setConn(conn);
+        fetchSettings();
+        fetchCameras();
     })
 
     createEffect(() => {

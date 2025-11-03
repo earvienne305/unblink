@@ -5,7 +5,7 @@ import { FiClock, FiFilm, FiGrid, FiMonitor, FiSearch, FiSettings } from 'solid-
 import { createSignal, For, Show, createMemo, onMount, batch } from 'solid-js';
 import logoSVG from '~/assets/logo.svg';
 import AddCameraButton from './AddCameraButton';
-import { cameras, setTabId, tabId, fetchCameras, camerasLoading, type Camera, setViewedMedias } from './shared';
+import { cameras, setTabId, tabId, fetchCameras, camerasLoading, type Camera, setViewedMedias, viewedMedias } from './shared';
 
 function MediaGroup(props: { group: { label: string; cameras: Camera[] } }) {
     const [isOpen, setIsOpen] = createSignal(true);
@@ -45,6 +45,8 @@ function MediaGroup(props: { group: { label: string; cameras: Camera[] } }) {
             >
                 <For each={props.group.cameras}>
                     {(camera) => {
+                        const isViewed = () => viewedMedias().some(m => m.stream_id === camera.id && !m.file_name);
+                        const onlyViewed = () => viewedMedias().length === 1 && isViewed();
                         return (
                             <div
                                 onClick={() => {
@@ -55,7 +57,8 @@ function MediaGroup(props: { group: { label: string; cameras: Camera[] } }) {
                                         }]);
                                     })
                                 }}
-                                class="cursor-pointer px-3 py-2 mx-2 space-x-3 rounded-lg hover:bg-neutral-800 flex items-center text-neutral-400 hover:text-white"
+                                data-viewed={onlyViewed()}
+                                class="cursor-pointer px-3 py-2 mx-2 space-x-3 rounded-lg hover:bg-neutral-800 flex items-center text-neutral-400 hover:text-white data-[viewed=true]:bg-neu-800 data-[viewed=true]:text-white"
                             >
                                 <div class="text-sm line-clamp-1 break-all">{camera.name}</div>
                             </div>
