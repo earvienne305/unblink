@@ -79,6 +79,8 @@ D-FINE object detection is resource-intensive. If you experience performance iss
 
 The model inference code is in a separate repository at [https://github.com/tri2820/unblink-engine](https://github.com/tri2820/unblink-engine). This separation allows the AI models to run with GPU acceleration in Python, while keeping the app lightweight.
 
+Currently I have the engine hosted on my GPU server that you can use (the client app automatically connects to it), so hosting the engine yourself is optional. If you need to, you can mofidy `ENGINE_URL` env var and the client app will connect there instead.
+
 ## Project Status
 
 | Feature | Status | Notes |
