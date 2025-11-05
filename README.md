@@ -1,3 +1,15 @@
+<p align="center">
+<img width="300" src="assets/logo.svg">
+</p>
+
+<p align="center">
+Join us here! 
+</p>
+
+<p align="center">
+<a href="https://discord.gg/YMAjT8A6e2"><img src="https://img.shields.io/discord/1435479251578261637?color=5865F2&logo=discord&logoColor=white&label=Discord" alt="Discord"></a>
+</p>
+
 # Unblink
 
 Unblink is a camera monitoring application that runs AI vision models on your camera streams in real-time. It features object detection with D-FINE, contextual understanding with SmolVLM2, and intelligent search capabilities across your video feeds.
@@ -59,10 +71,12 @@ Real-time object detection and tracking powered by D-FINE model.
 
 ## Q&A
 
-**Why does it consume so many resources?**
-D-FINE object detection is resource-intensive. If you experience performance issues, consider disabling object detection from the Settings page.
+**Why is my CPU usage so high?**
+
+D-FINE object detection is resource-intensive. If you experience performance issues, you could consider disabling object detection from the Settings page. I would add some optimization to this soon.
 
 **Where is the code to run the models?** 
+
 The model inference code is in a separate repository at [https://github.com/tri2820/unblink-engine](https://github.com/tri2820/unblink-engine). This separation allows the AI models to run with GPU acceleration in Python, while keeping the app lightweight.
 
 ## Project Status
@@ -77,6 +91,7 @@ The model inference code is in a separate repository at [https://github.com/tri2
 | Binary Distribution | 🤔 WIP | Need to implement Github Action that runs build.ts (help needed) |
 | Motion Detection | 🚧 Coming Soon |  |
 | ONVIF Support | 🚧 Coming Soon |  |
+| Automation | 🚧 Coming Soon |  |
 
 **Legend**: ✅ Added | 🤔 WIP | 🚧 Coming Soon
 
@@ -84,13 +99,9 @@ The model inference code is in a separate repository at [https://github.com/tri2
 
 Contributions are welcome! Please feel free to submit issues, feature requests, or pull requests.
 
-## License
-
-[Your License Here]
-
 ## Acknowledgments
 
-The tech that does the major lifting of the camera stream ingestion is done by `seydx` through the amazing `node-av` library. 
+The tech that does the major lifting of the stream ingestion work is done by `seydx` through the amazing [node-av](https://github.com/seydx/node-av) library. 
 
 ---
 
