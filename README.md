@@ -12,7 +12,11 @@ Join us here!
 
 # Unblink
 
-Unblink is a camera monitoring application that runs AI vision models on your camera streams in real-time. It features object detection with D-FINE, contextual understanding with SmolVLM2, and intelligent search capabilities across your video feeds.
+Unblink is a camera monitoring application that runs AI vision models on your camera streams in real-time. Key features:
+
+- 👀 Object detection with D-FINE
+- 🤓 Contextual understanding with SmolVLM2
+- 🔎 Intelligent search across your video feeds.
 
 ## Getting Started
 
@@ -107,4 +111,4 @@ The tech that does the major lifting of the stream ingestion work is done by `se
 
 ---
 
-Built with ❤️ and ramen
+Built with ❤️ and ramen. Star Unblink to save it for later. 🌟
