@@ -11,7 +11,7 @@ if ! tmux has-session -t "=$SESSION_NAME" 2>/dev/null; then
 
   # Create a new session (without -d) and run the command.
   # Omitting -d makes tmux create and attach to the session immediately.
-  tmux new-session -s $SESSION_NAME 'NODE_ENV=development bun index.ts'
+  tmux new-session -s $SESSION_NAME './dist/unblink-linux'
 else
   # Session DOES exist.
   echo "Attaching to existing tmux session '$SESSION_NAME'."
