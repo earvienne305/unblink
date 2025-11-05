@@ -251,10 +251,10 @@ const server = Bun.serve({
                         const oldFileStreams = client.subscription?.streams.filter(s => s.file_name) || [];
 
                         client.updateSubscription(decoded.subscription);
-                        logger.info(`Client subscription updated for ${ws.remoteAddress}: ${JSON.stringify(client.subscription)}`);
+                        // logger.info(`Client subscription updated for ${ws.remoteAddress}: ${JSON.stringify(client.subscription)}`);
 
                         const newFileStreams = decoded.subscription?.streams.filter(s => s.file_name) || [];
-                        logger.info(`Client file subscriptions for ${ws.remoteAddress}: ${JSON.stringify(newFileStreams)}`);
+                        // logger.info(`Client file subscriptions for ${ws.remoteAddress}: ${JSON.stringify(newFileStreams)}`);
 
                         const removedOldFileStreams = oldFileStreams.filter(oldStream =>
                             !newFileStreams.find(newStream => newStream.id === oldStream.id && newStream.file_name === oldStream.file_name)

@@ -8,7 +8,7 @@ let dispose: (() => void) | undefined;
 
 const renderApp = () => {
     const appElement = document.getElementById("root")!;
-    
+
     // Clear the root element first to ensure no duplicate content
     appElement.innerHTML = "";
 
@@ -39,6 +39,5 @@ if (import.meta.hot) {
     });
 }
 
-console.log("This is called!");
 // Initial render
 renderApp();

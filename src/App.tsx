@@ -25,7 +25,7 @@ export default function App() {
         if (!m) return;
 
         if (m.type === 'frame_description') {
-            console.log('Received description for stream', m.stream_id, ':', m.description);
+            // console.log('Received description for stream', m.stream_id, ':', m.description);
             setAgentCards(prev => {
                 return [...prev, { created_at: Date.now(), stream_id: m.stream_id, content: m.description }].slice(-200);
             });

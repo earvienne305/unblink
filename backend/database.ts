@@ -76,13 +76,13 @@ let write_queue: {
 let write_timeout: NodeJS.Timeout | null = null;
 
 export async function processWriteQueue() {
-    console.log('Processing write queue immediately, length:', write_queue.length);
+    // console.log('Processing write queue immediately, length:', write_queue.length);
     const queue = write_queue;
     write_queue = [];
     try {
         const updates = queue.filter(w => w.type === 'update').map(w => w.data as (Partial<MediaUnit> & { id: string }));
         const adds = queue.filter(w => w.type === 'add').map(w => w.data as MediaUnit);
-        console.log(`Processing write queue immediately with ${adds.length} adds and ${updates.length} updates`);
+        // console.log(`Processing write queue immediately with ${adds.length} adds and ${updates.length} updates`);
         if (adds.length > 0) {
             await table_media_units.add(adds);
         }
@@ -98,12 +98,12 @@ export function processWriteQueue_lazy() {
     if (write_queue.length === 0) return;
     if (write_timeout) clearTimeout(write_timeout);
     if (write_queue.length > 20) {
-        console.log('more than 20 items, processing immediately, length:', write_queue.length);
+        // console.log('more than 20 items, processing immediately, length:', write_queue.length);
         // If more than 20 items, process immediately
         processWriteQueue();
     } else {
         write_timeout = setTimeout(() => {
-            console.log('5 seconds passed, processing write queue, length:', write_queue.length);
+            // console.log('5 seconds passed, processing write queue, length:', write_queue.length);
             processWriteQueue();
         }, 5000);
     }
@@ -180,7 +180,7 @@ export async function updateMediaUnitBatch(mediaUnits: (Partial<MediaUnit> & { i
             .whenMatchedUpdateAll()
             .execute(rowUpdates);
 
-        console.log('updated media units:', result)
+        // console.log('updated media units:', result)
     } catch (error) {
         console.error("Error updating media unit batch:", error);
     }
