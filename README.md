@@ -2,6 +2,9 @@
 <img width="300" src="assets/logo.svg">
 </p>
 
+[![GitHub Stars](https://img.shields.io/github/stars/tri2820/unblink?style=flat)](https://github.com/tri2820/unblink/stargazers)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?style=flat&logo=discord&logoColor=white)](https://discord.gg/YMAjT8A6e2)
+
 # Unblink
 
 Unblink is a camera monitoring application that runs AI vision models on your camera streams in real-time. Key features:
@@ -83,17 +86,18 @@ Currently I have the engine hosted on my GPU server that you can use (the client
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Multi-camera Dashboard | ✅ Added | Tested with several camera protocols |
-| D-FINE Object Detection | ✅ Added | |
-| SmolVLM2 Integration | ✅ Added | |
+| Multi-camera Dashboard | ✅ Stable | Tested with several camera protocols |
+| D-FINE Object Detection | ✅ Stable | |
+| SmolVLM2 Integration | ✅ Stable | |
 | Semantic Search | 🤔 WIP | Need to rework UI |
 | Video Recording & Playback | 🤔 WIP | Need to implement controls (help needed) |
 | Binary Distribution | 🤔 WIP | Need to implement Github Action that runs build.ts (help needed) |
 | Motion Detection | 🚧 Coming Soon |  |
 | ONVIF Support | 🚧 Coming Soon |  |
+| Webhook | ✅ Stable |  |
 | Automation | 🚧 Coming Soon |  |
 
-**Legend**: ✅ Added | 🤔 WIP | 🚧 Coming Soon
+**Legend**: ✅ Stable | 🤔 WIP | 🚧 Coming Soon
 
 ## Contributing
 
