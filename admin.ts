@@ -1,9 +1,9 @@
-import { table_users, table_settings, table_secrets } from './backend/database';
-import { randomUUID } from 'crypto';
-import { createInterface } from 'node:readline/promises';
-import { hashPassword } from './backend/auth';
-import { RUNTIME_DIR } from './backend/appdir';
 import fs from 'fs/promises';
+import { createInterface } from 'node:readline/promises';
+import { RUNTIME_DIR } from './backend/appdir';
+import { hashPassword } from './backend/auth';
+import { table_secrets, table_settings, table_users } from './backend/database';
+import { v4 as uuid } from 'uuid';
 
 const rl = createInterface({
     input: process.stdin,
@@ -81,7 +81,7 @@ async function addUser() {
     }
 
     const argonHash = await hashPassword(password);
-    const id = randomUUID();
+    const id = uuid();
     await table_users.add([{ id, username, password_hash: argonHash, role }]);
     console.log(`New user '${username}' created successfully with role '${role}'.`);
 }

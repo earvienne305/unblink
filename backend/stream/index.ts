@@ -39,6 +39,7 @@ import {
     MediaOutput,
 } from "node-av";
 import path from "path";
+import { v4 as uuid } from 'uuid';
 import { FRAMES_DIR, RECORDINGS_DIR } from "~/backend/appdir";
 import { logger as _logger } from "~/backend/logger";
 import type { StreamMessage } from "~/shared";
@@ -294,7 +295,7 @@ export async function streamMedia(stream: StartStreamArg, onMessage: (msg: Strea
         if (now - last_save_time < 1000) return;
         last_save_time = now;
 
-        const frame_id = crypto.randomUUID()
+        const frame_id = uuid()
         const _path = path.join(FRAMES_DIR, `${frame_id}.jpg`);
         await Bun.write(_path, encodedData);
 

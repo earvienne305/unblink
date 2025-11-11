@@ -4,6 +4,7 @@ import { For, Show, createEffect, createSignal, onCleanup } from "solid-js";
 import ArkSwitch from "./ark/ArkSwitch";
 import CanvasVideo from "./CanvasVideo";
 import { cameras, relevantAgentCards, setSubscription, settings, tab } from "./shared";
+import { v4 as uuid } from 'uuid';
 
 const GAP_SIZE = '8px';
 
@@ -53,7 +54,7 @@ export default function ViewContent() {
         const medias = viewedMedias();
         if (medias && medias.length > 0) {
             console.log('Subscribing to streams:', medias);
-            const session_id = crypto.randomUUID();
+            const session_id = uuid();
 
             setSubscription({
                 session_id,

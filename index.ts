@@ -1,13 +1,13 @@
-import { decode } from "cbor-x";
-import { randomUUID } from "crypto";
-import { RECORDINGS_DIR, RUNTIME_DIR } from "./backend/appdir";
-import { searchMediaUnitsByEmbedding, table_media, table_sessions, table_settings, table_users } from "./backend/database";
-import { logger } from "./backend/logger";
-
 import type { ServerWebSocket } from "bun";
+import { decode } from "cbor-x";
+import { v4 as uuid } from 'uuid';
+import { admin } from "./admin";
 import { WsClient } from "./backend/WsClient";
+import { RECORDINGS_DIR, RUNTIME_DIR } from "./backend/appdir";
 import { auth_required, verifyPassword } from "./backend/auth";
+import { searchMediaUnitsByEmbedding, table_media, table_sessions, table_settings, table_users } from "./backend/database";
 import { createForwardFunction } from "./backend/forward";
+import { logger } from "./backend/logger";
 import { check_version } from "./backend/startup/check_version";
 import { connect_to_engine } from "./backend/startup/connect_to_engine";
 import { load_secrets } from "./backend/startup/load_secrets";
@@ -17,7 +17,6 @@ import { spawn_worker } from "./backend/worker_connect/shared";
 import { start_stream, start_stream_file, start_streams, stop_stream } from "./backend/worker_connect/worker_stream_connector";
 import homepage from "./index.html";
 import type { ClientToServerMessage, DbUser, RecordingsResponse } from "./shared";
-import { admin } from "./admin";
 
 // Check args for "admin" mode
 if (process.argv[2] === "admin") {
@@ -74,7 +73,7 @@ const server = Bun.serve({
                 const is_valid = await verifyPassword(password, user.password_hash);
                 if (!is_valid) return new Response("Invalid username or password", { status: 401 });
 
-                const session_id = randomUUID();
+                const session_id = uuid();
                 const created_at = new Date();
                 const expires_at = new Date(created_at.getTime() + SESSION_DURATION_HOURS * 60 * 60 * 1000);
 
@@ -175,7 +174,7 @@ const server = Bun.serve({
                 if (!name || !uri) {
                     return new Response('Missing name or uri', { status: 400 });
                 }
-                const id = randomUUID();
+                const id = uuid();
                 const updated_at = new Date();
                 await table_media.add([{ id, name, uri, labels: labels ?? [], updated_at, saveToDisk: saveToDisk ?? false, saveDir: saveDir ?? '' }]);
 
