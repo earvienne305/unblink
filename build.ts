@@ -22,6 +22,11 @@ for (const platform of platforms) {
             tailwindPlugin,
         ],
         outdir: "./dist",
+        naming: {
+            entry: "[name]-[hash].[ext]",
+            chunk: "chunks/[name]-[hash].[ext]",
+            asset: "assets/[name]-[hash].[ext]",
+        },
         compile: platform,
     });
 }
