@@ -22,7 +22,7 @@ Live demo: [https://app.zapdoslabs.com](https://app.zapdoslabs.com)
 
 ## Installation
 
-The following instructions are for running the source code using Bun. If you are looking for alternative methods, check out the [Docker](/docs/DOCKER.md) [or Binary Executable](/docs/BINARY_EXECUTABLE.md) doc.
+The following instructions are for running the source code using Bun. If you are looking for alternative methods, check out the [Docker](/docs/DOCKER.md) or [Binary Executable](/docs/BINARY_EXECUTABLE.md) doc.
 
 #### Prerequisites
 
