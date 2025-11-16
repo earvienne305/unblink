@@ -27,11 +27,22 @@ RUN bun test
 # copy production dependencies and source code into final image
 FROM base AS release
 ENV NODE_ENV=production
+
+# Install 'gosu' for privilege dropping
+RUN apt-get update && apt-get install -y gosu && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /usr/src/app
 COPY --from=install /temp/prod/node_modules node_modules
 COPY --from=prerelease /usr/src/app .
 
-# run the app
-USER bun
+# Copy the entrypoint script
+COPY entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 EXPOSE 3000/tcp
-ENTRYPOINT [ "bun", "run", "start" ]
+
+# Set the entrypoint to our script (solves permission error)
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+# Set the default command that works (solves silent exit)
+CMD [ "bun", "index.ts" ]
