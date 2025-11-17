@@ -3,6 +3,7 @@ import { createResource, For, Show } from "solid-js";
 import type { RecordingsResponse } from "~/shared";
 import LayoutContent from "./LayoutContent";
 import { cameras, setTab } from "~/src/shared";
+import { FiArchive } from "solid-icons/fi";
 
 async function fetchRecordings() {
     const response = await fetch("/recordings");
@@ -31,7 +32,11 @@ export default function HistoryContent() {
 
             <Show when={!isEmpty()} fallback={
                 <div class="h-full flex items-center justify-center text-neu-500">
-                    No recordings available
+                    <div>
+                        <FiArchive class="mb-4 w-12 h-12" />
+                        <p>No recordings available</p>
+                        <p>{"Enable recordings for the intended cameras in Home > Camera > Edit > Save to Disk."}</p>
+                    </div>
                 </div>
             }>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 ">
