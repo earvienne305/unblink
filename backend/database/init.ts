@@ -9,8 +9,9 @@ export async function initDatabase(client: Database) {
     // Check for existing tables by querying the schema table
     const getTablesStmt = client.prepare("SELECT name FROM sqlite_schema WHERE type='table';");
     const existingTableRows = await getTablesStmt.all() as { name: string }[];
-    const existingTables = new Set(existingTableRows.map(row => row.name));
-    logger.info({ tables: existingTables }, "Existing tables:");
+    const existingTablesArr = existingTableRows.map(row => row.name)
+    logger.info({ tables: existingTablesArr }, "Existing tables:");
+    const existingTables = new Set(existingTablesArr);
 
     // Create 'media_units' table
     if (!existingTables.has('media_units')) {

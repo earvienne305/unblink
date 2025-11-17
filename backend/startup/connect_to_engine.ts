@@ -27,6 +27,7 @@ export function connect_to_engine(props: {
             logger.error(event, "WebSocket to engine error:");
         },
         async onMessage(decoded) {
+
             if (decoded.type === 'frame_description') {
                 // Store in database
                 // logger.info(`Received description for frame ${decoded.frame_id}: ${decoded.description}`);
@@ -77,15 +78,16 @@ export function connect_to_engine(props: {
 
             if (decoded.type === 'frame_object_detection') {
                 // // Also forward to webhook
-                // props.forward_to_webhook({
-                //     event: 'object_detection',
-                //     data: {
-                //         created_at: new Date().toISOString(),
-                //         stream_id: decoded.stream_id,
-                //         frame_id: decoded.frame_id,
-                //         objects: decoded.objects,
-                //     }
-                // });
+                const msg: WebhookMessage = {
+                    type: 'object_detection',
+                    data: {
+                        created_at: new Date().toISOString(),
+                        stream_id: decoded.stream_id,
+                        frame_id: decoded.frame_id,
+                        objects: decoded.objects,
+                    }
+                }
+                props.forward_to_webhook(msg);
 
                 // Forward to clients
                 for (const [, client] of props.clients()) {
