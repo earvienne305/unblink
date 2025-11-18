@@ -12,8 +12,8 @@
 
 Unblink is a camera monitoring application that runs AI vision models on your camera streams in real-time. Key features:
 
-- 👀 Object detection with D-FINE
-- 🤓 Contextual understanding with SmolVLM2
+- 👀 Object detection
+- 🤓 Contextual understanding
 - 🔎 Intelligent search across your video feeds.
 
 Live demo: [https://app.zapdoslabs.com](https://app.zapdoslabs.com)
@@ -68,7 +68,7 @@ Monitor all your cameras simultaneously with real-time feeds and status indicato
 ![Multi-View](/assets/screenshots/multiview.png)
 
 ### Vision-Language Model (VLM) Interaction
-Ask natural language questions about what's happening in your camera feeds using SmolVLM2.
+Ask natural language questions about what's happening in your camera feeds.
 
 ![VLM Interface](/assets/screenshots/vlm.png)
 
@@ -92,7 +92,7 @@ Securely gate your instance with role-based access
 
 ## AI Models
 - **D-FINE**: State-of-the-art object detection for identifying and tracking objects in real-time
-- **SmolVLM2**: Vision-language model for understanding context and answering questions about camera feeds
+- **SmolVLM2** and **Moondream 3** : Vision-language models for understanding context and answering questions about camera feeds
 
 ## Q&A
 

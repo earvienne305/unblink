@@ -34,8 +34,10 @@ import {
     deleteSetting
 } from './utils';
 import { getDb, closeDb } from './database';
+import { createMoment, getMomentById, getAllMoments, getMomentsByLabel, updateMoment, deleteMoment, getMomentsByMediaId } from './utils';
 
 let dummyMediaId: string;
+let dummyMomentMediaId: string;
 let newMediaUnitId: string;
 let newUserId: string;
 let newSecretKey: string;
@@ -75,12 +77,26 @@ beforeAll(async () => {
             await deleteSetting(setting.key);
         }
     }
+
+    // Create a dummy media for moment tests
+    const momentMediaId = crypto.randomUUID();
+    dummyMomentMediaId = momentMediaId;
+    await createMedia({
+        id: momentMediaId,
+        name: 'Test Media for Moments',
+        uri: 'test://moment-media',
+        labels: ['moment-test'],
+        updated_at: Date.now(),
+        saveToDisk: 0,
+        saveDir: null
+    });
 });
 
 afterAll(async () => {
     // Cleanup: Delete created entries
     if (newMediaUnitId) await deleteMediaUnit(newMediaUnitId);
     if (dummyMediaId) await deleteMedia(dummyMediaId);
+    if (dummyMomentMediaId) await deleteMedia(dummyMomentMediaId);
     if (newUserId) await deleteUser(newUserId);
     if (newSecretKey) await deleteSecret(newSecretKey);
     await deleteSecret('another_key'); // Ensure this is cleaned up if created
@@ -856,4 +872,193 @@ test("Get media units by embedding similarity", async () => {
     await deleteMediaUnit(mediaUnitId2);
     await deleteMediaUnit(mediaUnitId3);
     await deleteMedia(testMediaId);
+});
+
+test("Create a new moment", async () => {
+    const momentId = crypto.randomUUID();
+    await createMoment({
+        id: momentId,
+        media_id: dummyMomentMediaId,
+        from_time: Date.now() - 10000, // 10 seconds ago
+        to_time: Date.now(),
+        description: 'A test moment',
+        importance_score: 0.7,
+        labels: ['Test', 'New']
+    });
+    const moment = await getMomentById(momentId);
+    expect(moment).toBeDefined();
+    expect(moment?.id).toBe(momentId);
+    expect(moment?.media_id).toBe(dummyMomentMediaId);
+    expect(moment?.description).toBe('A test moment');
+    expect(moment?.importance_score).toBe(0.7);
+    expect(moment?.labels).toEqual(['Test', 'New']);
+    await deleteMoment(momentId);
+});
+
+test("Get all moments", async () => {
+    const allMoments = await getAllMoments();
+    expect(allMoments).toBeArray();
+});
+
+test("Get moment by ID", async () => {
+    const momentId = crypto.randomUUID();
+    await createMoment({
+        id: momentId,
+        media_id: dummyMomentMediaId,
+        from_time: Date.now() - 5000,
+        to_time: Date.now(),
+        description: 'Test moment for ID retrieval',
+        importance_score: 0.5,
+        labels: ['Test']
+    });
+    const moment = await getMomentById(momentId);
+    expect(moment).toBeDefined();
+    expect(moment?.id).toBe(momentId);
+    expect(moment?.media_id).toBe(dummyMomentMediaId);
+    await deleteMoment(momentId);
+});
+
+test("Get moments by label", async () => {
+    const momentId = crypto.randomUUID();
+    await createMoment({
+        id: momentId,
+        media_id: dummyMomentMediaId,
+        from_time: Date.now() - 3000,
+        to_time: Date.now(),
+        description: 'Test moment with specific label',
+        importance_score: 0.6,
+        labels: ['Important', 'Test']
+    });
+
+    const momentsWithImportantLabel = await getMomentsByLabel('Important');
+    expect(momentsWithImportantLabel).toBeArray();
+    expect(momentsWithImportantLabel.some(m => m.id === momentId)).toBeTrue();
+    expect(momentsWithImportantLabel.every(m => m.labels.includes('Important'))).toBeTrue();
+
+    await deleteMoment(momentId);
+});
+
+test("Update moment", async () => {
+    const momentId = crypto.randomUUID();
+    await createMoment({
+        id: momentId,
+        media_id: dummyMomentMediaId,
+        from_time: Date.now() - 8000,
+        to_time: Date.now() - 1000,
+        description: 'Original description',
+        importance_score: 0.4,
+        labels: ['Original']
+    });
+
+    // Verify original values
+    const originalMoment = await getMomentById(momentId);
+    expect(originalMoment?.description).toBe('Original description');
+    expect(originalMoment?.importance_score).toBe(0.4);
+    expect(originalMoment?.labels).toEqual(['Original']);
+    expect(originalMoment?.media_id).toBe(dummyMomentMediaId);
+
+    // Update the moment
+    await updateMoment(momentId, {
+        description: 'Updated description',
+        importance_score: 0.9,
+        labels: ['Updated', 'Important']
+    });
+
+    // Verify updated values
+    const updatedMoment = await getMomentById(momentId);
+    expect(updatedMoment?.description).toBe('Updated description');
+    expect(updatedMoment?.importance_score).toBe(0.9);
+    expect(updatedMoment?.labels).toEqual(['Updated', 'Important']);
+
+    await deleteMoment(momentId);
+});
+
+test("Delete moment and verify", async () => {
+    const momentId = crypto.randomUUID();
+    await createMoment({
+        id: momentId,
+        media_id: dummyMomentMediaId,
+        from_time: Date.now() - 2000,
+        to_time: Date.now(),
+        description: 'Test moment for deletion',
+        importance_score: 0.3,
+        labels: ['Test']
+    });
+
+    // Verify the moment was created
+    const moment = await getMomentById(momentId);
+    expect(moment).toBeDefined();
+    expect(moment?.id).toBe(momentId);
+    expect(moment?.media_id).toBe(dummyMomentMediaId);
+
+    // Delete the moment
+    await deleteMoment(momentId);
+
+    // Verify the moment was deleted
+    const deletedMoment = await getMomentById(momentId);
+    expect(deletedMoment).toBeUndefined();
+});
+
+test("Get moments by media ID", async () => {
+    const momentId1 = crypto.randomUUID();
+    const momentId2 = crypto.randomUUID();
+
+    // Create two moments with the same media_id and one with a different media_id
+    await createMoment({
+        id: momentId1,
+        media_id: dummyMomentMediaId,
+        from_time: Date.now() - 10000,
+        to_time: Date.now() - 9000,
+        description: 'First test moment',
+        importance_score: 0.5,
+        labels: ['Test']
+    });
+
+    await createMoment({
+        id: momentId2,
+        media_id: dummyMomentMediaId,
+        from_time: Date.now() - 5000,
+        to_time: Date.now() - 4000,
+        description: 'Second test moment',
+        importance_score: 0.6,
+        labels: ['Test']
+    });
+
+    // Create a moment with a different media_id for comparison
+    const differentMediaId = crypto.randomUUID();
+    await createMedia({
+        id: differentMediaId,
+        name: 'Different Media for Moments',
+        uri: 'test://different-media',
+        labels: ['different-test'],
+        updated_at: Date.now(),
+        saveToDisk: 0,
+        saveDir: null
+    });
+
+    const momentId3 = crypto.randomUUID();
+    await createMoment({
+        id: momentId3,
+        media_id: differentMediaId,
+        from_time: Date.now() - 3000,
+        to_time: Date.now() - 2000,
+        description: 'Third test moment with different media',
+        importance_score: 0.7,
+        labels: ['Test']
+    });
+
+    // Get moments by the first media ID
+    const momentsByMedia = await getMomentsByMediaId(dummyMomentMediaId);
+
+    // Should return only the first two moments
+    expect(momentsByMedia).toBeArrayOfSize(2);
+    expect(momentsByMedia.some(m => m.id === momentId1)).toBeTrue();
+    expect(momentsByMedia.some(m => m.id === momentId2)).toBeTrue();
+    expect(momentsByMedia.every(m => m.media_id === dummyMomentMediaId)).toBeTrue();
+
+    // Clean up
+    await deleteMoment(momentId1);
+    await deleteMoment(momentId2);
+    await deleteMoment(momentId3);
+    await deleteMedia(differentMediaId);
 });

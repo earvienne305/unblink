@@ -105,14 +105,27 @@ export async function initDatabase(client: Database) {
         await client.exec(`
             CREATE TABLE moments (
                 id TEXT PRIMARY KEY,
+                media_id TEXT NOT NULL,
                 from_time INTEGER NOT NULL,
                 to_time INTEGER NOT NULL,
-                media_unit_ids TEXT NOT NULL,
-                summary TEXT,
-                importance_score REAL
+                description TEXT,
+                importance_score REAL,
+                labels TEXT
             );
         `);
         logger.info("Table 'moments' created.");
+    } else {
+        // Check if the media_id column exists, and add it if it doesn't
+        const columnsResult = await client.prepare("PRAGMA table_info(moments)").all();
+        const columnNames = new Set((columnsResult as any[]).map((row: any) => row.name));
+        if (!columnNames.has('media_id')) {
+            // Add the media_id column to the existing table, allowing NULL initially
+            await client.exec("ALTER TABLE moments ADD COLUMN media_id TEXT");
+            logger.info("Column 'media_id' added to 'moments' table.");
+            
+            // Update existing rows to have a default value if necessary, then make it NOT NULL
+            await client.exec("UPDATE moments SET media_id = 'default-media-id' WHERE media_id IS NULL");
+        }
     }
 }
 

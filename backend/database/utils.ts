@@ -1,6 +1,6 @@
 import type { Database } from '@tursodatabase/database';
 import { getDb } from './database';
-import type { Media, MediaUnit, Secret, Session, Setting, User } from '~/shared/database';
+import type { Media, MediaUnit, Secret, Session, Setting, User, Moment } from '~/shared/database';
 import type { RESTQuery } from '~/shared';
 
 
@@ -458,4 +458,113 @@ export async function getMediaUnitsByIds(ids: string[]): Promise<MediaUnit[]> {
     const stmt = db.prepare(sql);
     const rows = await stmt.all(...ids) as MediaUnit[];
     return rows;
+}
+
+// Moment utilities
+export async function getMomentById(id: string): Promise<Moment | undefined> {
+    const db = await getDb();
+    const stmt = db.prepare('SELECT * FROM moments WHERE id = ?');
+    const row = await stmt.get(id) as any;
+
+    if (row) {
+        try {
+            row.labels = JSON.parse(row.labels);
+        } catch (e) {
+            console.error(`Failed to parse labels for moment ${id}:`, row.labels);
+            row.labels = []; // Default to empty array on error
+        }
+    }
+    return row as Moment | undefined;
+}
+
+export async function getAllMoments(): Promise<Moment[]> {
+    const db = await getDb();
+    const stmt = db.prepare('SELECT * FROM moments ORDER BY from_time DESC');
+    const rows = await stmt.all() as any[];
+
+    return rows.map(row => {
+        try {
+            row.labels = JSON.parse(row.labels);
+        } catch (e) {
+            console.error(`Failed to parse labels for moment ${row.id}:`, row.labels);
+            row.labels = []; // Default to empty array on error
+        }
+        return row;
+    }) as Moment[];
+}
+
+export async function getMomentsByLabel(label: string): Promise<Moment[]> {
+    const db = await getDb();
+    const stmt = db.prepare("SELECT * FROM moments WHERE labels LIKE ?");
+    const rows = await stmt.all(`%"${label}"%`) as any[]; // Search for label inside JSON array string
+
+    return rows.map(row => {
+        try {
+            row.labels = JSON.parse(row.labels);
+        } catch (e) {
+            console.error(`Failed to parse labels for moment ${row.id}:`, row.labels);
+            row.labels = []; // Default to empty array on error
+        }
+        return row;
+    }) as Moment[];
+}
+
+export async function createMoment(moment: Moment): Promise<void> {
+    const db = await getDb();
+
+    const stmt = db.prepare(`
+        INSERT INTO moments (id, media_id, from_time, to_time, description, importance_score, labels)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    await stmt.run(
+        moment.id,
+        moment.media_id,
+        moment.from_time,
+        moment.to_time,
+        moment.description || null,
+        moment.importance_score || null,
+        JSON.stringify(moment.labels)
+    );
+}
+
+export async function updateMoment(id: string, updates: Partial<Omit<Moment, 'id'>>): Promise<void> {
+    const db = await getDb();
+
+    // Build dynamic update query
+    const fields = Object.keys(updates);
+    if (fields.length === 0) return;
+
+    const updatesCopy: any = { ...updates };
+    if (updatesCopy.labels) {
+        updatesCopy.labels = JSON.stringify(updatesCopy.labels);
+    }
+
+    const setClause = fields.map(field => `${field} = ?`).join(', ');
+    const values = fields.map(field => updatesCopy[field]);
+
+    const stmt = db.prepare(`UPDATE moments SET ${setClause} WHERE id = ?`);
+    await stmt.run(...values, id);
+}
+
+export async function deleteMoment(id: string): Promise<void> {
+    const db = await getDb();
+    const stmt = db.prepare('DELETE FROM moments WHERE id = ?');
+    await stmt.run(id);
+}
+
+export async function getMomentsByMediaId(mediaId: string): Promise<Moment[]> {
+    const db = await getDb();
+    const stmt = db.prepare('SELECT * FROM moments WHERE media_id = ? ORDER BY from_time DESC');
+    const rows = await stmt.all(mediaId) as any[];
+
+    return rows.map(row => {
+        try {
+            row.labels = JSON.parse(row.labels);
+        } catch (e) {
+            console.error(`Failed to parse labels for moment ${row.id}:`, row.labels);
+            row.labels = []; // Default to empty array on error
+        }
+        return row;
+    }) as Moment[];
 }

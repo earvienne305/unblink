@@ -7,7 +7,6 @@ import type { Conn } from "~/shared/Conn";
 import type { EngineToServer, ServerToEngine } from "~/shared/engine";
 import { createMediaUnit } from "./database/utils";
 import type { WsClient } from "./WsClient";
-import { logger } from "./logger";
 
 export const createForwardFunction = (opts: {
     clients: Map<ServerWebSocket, WsClient>,
@@ -76,8 +75,8 @@ export const createForwardFunction = (opts: {
             };
 
             (async () => {
-                // Throttle engine forwarding to 1 frame every 5 seconds
-                if (now - state.streams[decoded.stream_id]!.last_engine_sent__index < 5000) return;
+                // Throttle engine forwarding to 1 frame every 10 seconds
+                if (now - state.streams[decoded.stream_id]!.last_engine_sent__index < 10000) return;
                 state.streams[decoded.stream_id]!.last_engine_sent__index = now;
 
                 await createMediaUnit(mu)
@@ -98,7 +97,6 @@ export const createForwardFunction = (opts: {
                     stream_id: decoded.stream_id,
                     frame_id: decoded.frame_id,
                     frame,
-                    at_time: mu.at_time,
                 }
                 engine_conn.send(msg);
             })();
@@ -120,7 +118,6 @@ export const createForwardFunction = (opts: {
                     stream_id: decoded.stream_id,
                     frame_id: decoded.frame_id,
                     frame: await fs.readFile(decoded.path),
-                    at_time: mu.at_time,
                 }
                 opts.engine_conn().send(msg);
             })();

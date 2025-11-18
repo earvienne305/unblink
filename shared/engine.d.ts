@@ -13,7 +13,6 @@ export type ServerToEngine =
         frame_id: string;
         stream_id: string;
         frame: Uint8Array;
-        at_time: number;
     }
 
 export type DetectionObject = {
@@ -45,7 +44,18 @@ export type EngineToServer = {
 } | {
     type: "media_summary",
     media_id: string;
-    summary: string;
+    summary: Summary
 }
 
 export type EngineReceivedMessage = ServerToEngine | WorkerToEngine;
+export type Moment = {
+    from_time: number;
+    to_time: number;
+    description: string,
+    importance_score: number,
+    labels: string[],
+}
+export type Summary = {
+    background: string;
+    moments: Moment[],
+}

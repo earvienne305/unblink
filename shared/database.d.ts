@@ -43,3 +43,13 @@ export interface User {
     password_hash: string;
     role: string;
 }
+
+export interface Moment {
+    id: string;
+    media_id: string;
+    from_time: number;
+    to_time: number;
+    description?: string | null;
+    importance_score?: number | null;
+    labels: string[];
+}

@@ -89,7 +89,7 @@ export default function ViewContent() {
                     where: [{
                         'field': 'media_id', 'op': 'in', 'value': medias.map(m => m.stream_id),
                     }, {
-                        'field': 'embedding', 'op': 'is_not', 'value': null
+                        'field': 'description', 'op': 'is_not', 'value': null
                     }]
                 } as RESTQuery,
             }),
