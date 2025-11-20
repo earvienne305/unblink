@@ -409,7 +409,12 @@ export async function getMediaUnitsByEmbedding(queryEmbedding: number[]): Promis
 export async function getByQuery(query: RESTQuery): Promise<MediaUnit[]> {
     const db = await getDb();
 
-    let sql = `SELECT * FROM ${query.table}`;
+    let selectClause = '*';
+    if (query.select && query.select.length > 0) {
+        selectClause = query.select.join(', ');
+    }
+
+    let sql = `SELECT ${selectClause} FROM ${query.table}`;
     const conditions: string[] = [];
     const values: any[] = [];
 
@@ -442,6 +447,13 @@ export async function getByQuery(query: RESTQuery): Promise<MediaUnit[]> {
     if (conditions.length > 0) {
         sql += ' WHERE ' + conditions.join(' AND ');
     }
+
+    let limit = query.limit || 50;
+    if (limit > 200) {
+        limit = 200;
+    }
+    sql += ` LIMIT ?`;
+    values.push(limit);
 
     const stmt = db.prepare(sql);
     const rows = await stmt.all(...values) as MediaUnit[];

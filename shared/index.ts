@@ -117,7 +117,9 @@ export type RESTQuery = {
         field: string;
         op: 'equals' | 'in' | 'is_not' | 'like';
         value: any;
-    }[]
+    }[];
+    select?: string[];
+    limit?: number;
 }
 
 export type ServerEphemeralState = {

@@ -124,7 +124,9 @@ export function connect_to_engine(props: {
                 }
 
                 const state = props.state();
+                // Only 1000 max
                 state.motion_energy_messages.push(decoded);
+                state.motion_energy_messages = state.motion_energy_messages.slice(-1000);
                 // logger.info({ decoded }, "Received motion energy data");
             }
         }

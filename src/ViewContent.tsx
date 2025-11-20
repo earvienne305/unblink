@@ -91,13 +91,16 @@ export default function ViewContent() {
                         'field': 'media_id', 'op': 'in', 'value': medias.map(m => m.stream_id),
                     }, {
                         'field': 'description', 'op': 'is_not', 'value': null
-                    }]
+                    }],
+                    select: ['id', 'media_id', 'at_time', 'description', 'path', 'type'],
+                    limit: 20
                 } as RESTQuery,
             }),
         });
 
         if (resp.ok) {
             const data = await resp.json() as { media_units: MediaUnit[] };
+            console.log('data.media_units', data.media_units.length)
             setAgentCards([...data.media_units]);
 
             console.log('Fetched media units for viewed medias:', data);
@@ -161,7 +164,12 @@ export default function ViewContent() {
                                             <For each={row}>
                                                 {(media) => {
                                                     return <div style={{ width: `calc((100% - (${cols() - 1} * ${GAP_SIZE})) / ${cols()})`, height: '100%' }}>
-                                                        <CanvasVideo stream_id={media.stream_id} file_name={media.file_name} showDetections={showDetections} />
+                                                        <CanvasVideo
+                                                            stream_id={media.stream_id}
+                                                            file_name={media.file_name}
+                                                            showDetections={showDetections}
+                                                            camera_name={cameras().find(c => c.id === media.stream_id)?.name}
+                                                        />
                                                     </div>
                                                 }}
                                             </For>

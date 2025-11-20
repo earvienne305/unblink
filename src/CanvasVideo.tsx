@@ -17,6 +17,7 @@ class MjpegPlayer {
     private sourceHeight = 0;
     private onDrawingStateChange: (isDrawing: boolean) => void;
     public _showDetections = true;
+    public cameraName: string | undefined;
 
     constructor(
         canvas: HTMLCanvasElement,
@@ -102,6 +103,8 @@ class MjpegPlayer {
             if (this._showDetections) {
                 this.drawDetections(geom);
             }
+
+            this.drawCameraName(geom);
         }
 
         if (!one_time) {
@@ -193,6 +196,29 @@ class MjpegPlayer {
         this.ctx.restore();
     }
 
+    private drawCameraName(geom: { renderWidth: number; renderHeight: number; offsetX: number; offsetY: number }) {
+        if (!this.cameraName) return;
+
+        this.ctx.save();
+        this.ctx.font = '16px Arial';
+        this.ctx.textBaseline = 'bottom';
+        this.ctx.textAlign = 'left';
+
+        const padding = 10;
+        const x = geom.offsetX + padding;
+        const y = geom.offsetY + geom.renderHeight - padding;
+
+        // Optional: Add a subtle shadow for better visibility
+        this.ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        this.ctx.shadowBlur = 4;
+        this.ctx.shadowOffsetX = 1;
+        this.ctx.shadowOffsetY = 1;
+
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.fillText(this.cameraName, x, y);
+
+        this.ctx.restore();
+    }
 
     private startRenderLoop() {
         this.animationFrameId = requestAnimationFrame(() => this.render());
@@ -219,9 +245,14 @@ class MjpegPlayer {
         // Draw immediately to reflect change
         this.render(true);
     }
+
+    public setCameraName(name: string) {
+        this.cameraName = name;
+        this.render(true);
+    }
 }
 
-export default function CanvasVideo(props: { stream_id: string, file_name?: string, showDetections: Accessor<boolean> }) {
+export default function CanvasVideo(props: { stream_id: string, file_name?: string, showDetections: Accessor<boolean>, camera_name?: string }) {
     const [canvasRef, setCanvasRef] = createSignal<HTMLCanvasElement>();
     const [containerRef, setContainerRef] = createSignal<HTMLDivElement>();
     const [isDrawing, setIsDrawing] = createSignal(false);
@@ -235,9 +266,18 @@ export default function CanvasVideo(props: { stream_id: string, file_name?: stri
     });
 
     createEffect(() => {
+        if (player && props.camera_name) {
+            player.setCameraName(props.camera_name);
+        }
+    });
+
+    createEffect(() => {
         const canvas = canvasRef();
         if (canvas && !player) {
             player = new MjpegPlayer(canvas, setIsDrawing);
+            if (props.camera_name) {
+                player.setCameraName(props.camera_name);
+            }
         }
     });
 
