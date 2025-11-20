@@ -6,6 +6,7 @@ import { Conn } from "~/shared/Conn";
 import type { EngineToServer, ServerRegistrationMessage, ServerToEngine } from "~/shared/engine";
 import { createMoment, getMediaUnitById, updateMediaUnit } from "../database/utils";
 import { logger } from "../logger";
+import { calculateFrameStats } from "../utils/frame_stats";
 import type { WsClient } from "../WsClient";
 
 
@@ -118,16 +119,34 @@ export function connect_to_engine(props: {
             }
 
             if (decoded.type === 'frame_motion_energy') {
+                const state = props.state();
+
+                // Calculate frame stats with averages
+                const frameStats = calculateFrameStats(
+                    state.stream_stats_map,
+                    decoded.stream_id,
+                    decoded.motion_energy
+                );
+
+                // Create frame_stats message
+                const statsMessage = {
+                    type: 'frame_stats' as const,
+                    stream_id: decoded.stream_id,
+                    frame_id: decoded.frame_id,
+                    motion_energy: frameStats.motion_energy,
+                    total_avg: frameStats.total_avg,
+                    sma10: frameStats.sma10,
+                    timestamp: Date.now(),
+                };
+
                 // Forward to clients
                 for (const [, client] of props.clients()) {
-                    client.send(decoded);
+                    client.send(statsMessage);
                 }
 
-                const state = props.state();
                 // Only 1000 max
-                state.motion_energy_messages.push(decoded);
-                state.motion_energy_messages = state.motion_energy_messages.slice(-1000);
-                // logger.info({ decoded }, "Received motion energy data");
+                state.frame_stats_messages.push(statsMessage);
+                state.frame_stats_messages = state.frame_stats_messages.slice(-1000);
             }
         }
     });

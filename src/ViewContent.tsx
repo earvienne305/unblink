@@ -183,7 +183,7 @@ export default function ViewContent() {
 
                 <Show when={some_media_is_live()}>
 
-                    <ActivityBar viewedMedias={viewedMedias} />
+                    <ActivityBar viewedMedias={viewedMedias} cameras={cameras} />
 
                 </Show>
             </div>

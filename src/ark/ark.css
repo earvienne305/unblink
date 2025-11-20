@@ -3,6 +3,7 @@
     height: 0;
     opacity: 0;
   }
+
   to {
     height: var(--height);
     opacity: 1;
@@ -14,6 +15,7 @@
     height: var(--height);
     opacity: 1;
   }
+
   to {
     height: 0;
     opacity: 0;
@@ -27,6 +29,7 @@
     opacity: 0;
     transform: scale(0.96);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -38,6 +41,7 @@
     opacity: 1;
     transform: scale(1);
   }
+
   to {
     opacity: 0;
     transform: scale(0.96);
@@ -49,6 +53,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -58,6 +63,7 @@
   from {
     opacity: 1;
   }
+
   to {
     opacity: 0;
   }
@@ -87,4 +93,13 @@
 
 [data-scope='dialog'][data-part='content'][data-state='closed'] {
   animation: scaleOut 200ms ease-in forwards;
+}
+
+
+[data-scope='tooltip'][data-part='content'][data-state='open'] {
+  animation: fadeIn 150ms ease-out forwards;
+}
+
+[data-scope='tooltip'][data-part='content'][data-state='closed'] {
+  animation: fadeOut 100ms ease-in forwards;
 }

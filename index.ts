@@ -18,7 +18,6 @@ import { start_stream, start_stream_file, start_streams, stop_stream } from "./b
 import homepage from "./index.html";
 import type { ClientToServerMessage, DbUser, ServerEphemeralState, RecordingsResponse, RESTQuery } from "./shared";
 import path from "node:path";
-import type { FrameMotionEnergyMessage } from "./shared/engine";
 
 // Check args for "admin" mode
 if (process.argv[2] === "admin") {
@@ -41,7 +40,8 @@ const forward_to_webhook = create_webhook_forward({ settings });
 // For things we don't want to persist in database 
 // But want to be readily available upon new client connections
 const state: ServerEphemeralState = {
-    motion_energy_messages: [],
+    frame_stats_messages: [],
+    stream_stats_map: new Map(),
 }
 const engine_conn = connect_to_engine({
     ENGINE_URL,

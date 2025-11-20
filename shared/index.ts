@@ -1,6 +1,17 @@
 
 import type { MediaUnit } from "./database";
-import type { EngineToServer, FrameMotionEnergyMessage } from "./engine";
+import type { EngineToServer } from "./engine";
+
+// Frame stats message - calculated on backend from frame_motion_energy
+export type FrameStatsMessage = {
+    type: "frame_stats";
+    stream_id: string;
+    frame_id: string;
+    motion_energy: number;
+    total_avg: number;
+    sma10: number;
+    timestamp: number; // Unix timestamp in milliseconds
+}
 
 // export type FrameMessage = {
 //     type: "frame_file";
@@ -41,7 +52,7 @@ export type ClientToServerMessage = {
 export type WorkerToServerMessage =
     // WorkerObjectDetectionToServerMessage | 
     WorkerStreamToServerMessage
-export type ServerToClientMessage = (WorkerToServerMessage | EngineToServer | {
+export type ServerToClientMessage = (WorkerToServerMessage | EngineToServer | FrameStatsMessage | {
     type: 'agent_card';
     media_unit: MediaUnit;
 }) & {
@@ -123,5 +134,10 @@ export type RESTQuery = {
 }
 
 export type ServerEphemeralState = {
-    motion_energy_messages: FrameMotionEnergyMessage[]
+    frame_stats_messages: FrameStatsMessage[];
+    stream_stats_map: Map<string, {
+        sum: number;
+        count: number;
+        last10: number[];
+    }>;
 };

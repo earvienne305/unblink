@@ -1,7 +1,7 @@
 
 import { createEffect, onMount, untrack, type ValidComponent } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
-import type { ServerEphemeralState } from '~/shared';
+import type { FrameStatsMessage, ServerEphemeralState } from '~/shared';
 import ArkToast from './ark/ArkToast';
 import Authed from './Authed';
 import HistoryContent from './content/HistoryContent';
@@ -10,7 +10,7 @@ import MomentsContent from './content/MomentsContent';
 import SearchContent from './content/SearchContent';
 import SearchResultContent from './content/SearchResultContent';
 import SettingsContent from './content/SettingsContent';
-import { cameras, conn, fetchCameras, setAgentCards, setConn, setMotionMessages, subscription, tab, type Tab } from './shared';
+import { cameras, conn, fetchCameras, setAgentCards, setConn, setStatsMessages, subscription, tab, type Tab } from './shared';
 import SideBar from './SideBar';
 import { connectWebSocket, newMessage } from './video/connection';
 import ViewContent from './ViewContent';
@@ -25,8 +25,22 @@ export default function App() {
             const response = await fetch('/state');
             const data: ServerEphemeralState = await response.json();
             console.log('Fetched global state from server:', data);
-            const max_length = MAX_MOTION_MESSAGES_LENGTH_EACH * untrack(cameras).length;
-            setMotionMessages(data.motion_energy_messages.slice(-max_length) || []);
+
+            // Group messages by stream_id
+            const messagesByStream: Record<string, FrameStatsMessage[]> = {};
+            for (const msg of data.frame_stats_messages) {
+                if (!messagesByStream[msg.stream_id]) {
+                    messagesByStream[msg.stream_id] = [];
+                }
+                messagesByStream[msg.stream_id]!.push(msg);
+            }
+
+            // Keep only last 100 messages per stream
+            for (const streamId in messagesByStream) {
+                messagesByStream[streamId] = messagesByStream[streamId]!.slice(-MAX_MOTION_MESSAGES_LENGTH_EACH);
+            }
+
+            setStatsMessages(messagesByStream);
         } catch (error) {
             console.error('Error fetching global state from server:', error);
         }
@@ -36,10 +50,12 @@ export default function App() {
         const m = newMessage();
         if (!m) return;
 
-        if (m.type === 'frame_motion_energy') {
-            // console.log("Motion energy data received in MotionBar:", m);
-            const max_length = MAX_MOTION_MESSAGES_LENGTH_EACH * untrack(cameras).length;
-            setMotionMessages(prev => [...prev, m].slice(-max_length)); // Keep last 100 messages
+        if (m.type === 'frame_stats') {
+            const streamId = m.stream_id;
+            setStatsMessages(streamId, (prev = []) => {
+                const updated = [...prev, m];
+                return updated.slice(-MAX_MOTION_MESSAGES_LENGTH_EACH);
+            });
         }
     });
 
