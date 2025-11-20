@@ -1,6 +1,7 @@
 
-import { createEffect, onMount, type ValidComponent } from 'solid-js';
+import { createEffect, onMount, untrack, type ValidComponent } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
+import type { ServerEphemeralState } from '~/shared';
 import ArkToast from './ark/ArkToast';
 import Authed from './Authed';
 import HistoryContent from './content/HistoryContent';
@@ -9,12 +10,12 @@ import MomentsContent from './content/MomentsContent';
 import SearchContent from './content/SearchContent';
 import SearchResultContent from './content/SearchResultContent';
 import SettingsContent from './content/SettingsContent';
-import { conn, fetchCameras, setAgentCards, setConn, setMotionMessages, subscription, tab, type Tab } from './shared';
+import { cameras, conn, fetchCameras, setAgentCards, setConn, setMotionMessages, subscription, tab, type Tab } from './shared';
 import SideBar from './SideBar';
 import { connectWebSocket, newMessage } from './video/connection';
 import ViewContent from './ViewContent';
-import type { FrameMotionEnergyMessage } from '~/shared/engine';
-import type { ServerEphemeralState } from '~/shared';
+
+const MAX_MOTION_MESSAGES_LENGTH_EACH = 100;
 
 export default function App() {
 
@@ -24,7 +25,8 @@ export default function App() {
             const response = await fetch('/state');
             const data: ServerEphemeralState = await response.json();
             console.log('Fetched global state from server:', data);
-            setMotionMessages(data.motion_energy_messages || []);
+            const max_length = MAX_MOTION_MESSAGES_LENGTH_EACH * untrack(cameras).length;
+            setMotionMessages(data.motion_energy_messages.slice(-max_length) || []);
         } catch (error) {
             console.error('Error fetching global state from server:', error);
         }
@@ -36,7 +38,8 @@ export default function App() {
 
         if (m.type === 'frame_motion_energy') {
             // console.log("Motion energy data received in MotionBar:", m);
-            setMotionMessages(prev => [...prev, m].slice(-100)); // Keep last 100 messages
+            const max_length = MAX_MOTION_MESSAGES_LENGTH_EACH * untrack(cameras).length;
+            setMotionMessages(prev => [...prev, m].slice(-max_length)); // Keep last 100 messages
         }
     });
 
