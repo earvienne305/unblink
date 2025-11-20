@@ -2,6 +2,7 @@ import { createSignal } from "solid-js";
 import type { ClientToServerMessage, ServerToClientMessage, Subscription, User } from "~/shared";
 import type { Conn } from "~/shared/Conn";
 import type { MediaUnit } from "~/shared/database";
+import type { FrameMotionEnergyMessage } from "~/shared/engine";
 
 export type Camera = {
     id: string;
@@ -89,3 +90,5 @@ export const relevantAgentCards = () => {
 
     return relevant_cards;
 }
+
+export const [motionMessages, setMotionMessages] = createSignal<FrameMotionEnergyMessage[]>([]);

@@ -881,7 +881,8 @@ test("Create a new moment", async () => {
         media_id: dummyMomentMediaId,
         from_time: Date.now() - 10000, // 10 seconds ago
         to_time: Date.now(),
-        description: 'A test moment',
+        what_old: 'Old moment description',
+        what_new: 'A test moment',
         importance_score: 0.7,
         labels: ['Test', 'New']
     });
@@ -889,7 +890,8 @@ test("Create a new moment", async () => {
     expect(moment).toBeDefined();
     expect(moment?.id).toBe(momentId);
     expect(moment?.media_id).toBe(dummyMomentMediaId);
-    expect(moment?.description).toBe('A test moment');
+    expect(moment?.what_old).toBe('Old moment description');
+    expect(moment?.what_new).toBe('A test moment');
     expect(moment?.importance_score).toBe(0.7);
     expect(moment?.labels).toEqual(['Test', 'New']);
     await deleteMoment(momentId);
@@ -907,7 +909,8 @@ test("Get moment by ID", async () => {
         media_id: dummyMomentMediaId,
         from_time: Date.now() - 5000,
         to_time: Date.now(),
-        description: 'Test moment for ID retrieval',
+        what_old: 'None',
+        what_new: 'Test moment retrieval',
         importance_score: 0.5,
         labels: ['Test']
     });
@@ -925,7 +928,8 @@ test("Get moments by label", async () => {
         media_id: dummyMomentMediaId,
         from_time: Date.now() - 3000,
         to_time: Date.now(),
-        description: 'Test moment with specific label',
+        what_old: '',
+        what_new: 'Test moment with specific label',
         importance_score: 0.6,
         labels: ['Important', 'Test']
     });
@@ -945,28 +949,29 @@ test("Update moment", async () => {
         media_id: dummyMomentMediaId,
         from_time: Date.now() - 8000,
         to_time: Date.now() - 1000,
-        description: 'Original description',
+        what_old: '',
+        what_new: 'Original description',
         importance_score: 0.4,
         labels: ['Original']
     });
 
     // Verify original values
     const originalMoment = await getMomentById(momentId);
-    expect(originalMoment?.description).toBe('Original description');
+    expect(originalMoment?.what_new).toBe('Original description');
     expect(originalMoment?.importance_score).toBe(0.4);
     expect(originalMoment?.labels).toEqual(['Original']);
     expect(originalMoment?.media_id).toBe(dummyMomentMediaId);
 
     // Update the moment
     await updateMoment(momentId, {
-        description: 'Updated description',
+        what_new: 'Updated description',
         importance_score: 0.9,
         labels: ['Updated', 'Important']
     });
 
     // Verify updated values
     const updatedMoment = await getMomentById(momentId);
-    expect(updatedMoment?.description).toBe('Updated description');
+    expect(updatedMoment?.what_new).toBe('Updated description');
     expect(updatedMoment?.importance_score).toBe(0.9);
     expect(updatedMoment?.labels).toEqual(['Updated', 'Important']);
 
@@ -980,7 +985,8 @@ test("Delete moment and verify", async () => {
         media_id: dummyMomentMediaId,
         from_time: Date.now() - 2000,
         to_time: Date.now(),
-        description: 'Test moment for deletion',
+        what_old: '',
+        what_new: 'Moment to be deleted',
         importance_score: 0.3,
         labels: ['Test']
     });
@@ -1009,7 +1015,8 @@ test("Get moments by media ID", async () => {
         media_id: dummyMomentMediaId,
         from_time: Date.now() - 10000,
         to_time: Date.now() - 9000,
-        description: 'First test moment',
+        what_old: '',
+        what_new: 'First test moment',
         importance_score: 0.5,
         labels: ['Test']
     });
@@ -1019,7 +1026,8 @@ test("Get moments by media ID", async () => {
         media_id: dummyMomentMediaId,
         from_time: Date.now() - 5000,
         to_time: Date.now() - 4000,
-        description: 'Second test moment',
+        what_old: '',
+        what_new: 'Second test moment',
         importance_score: 0.6,
         labels: ['Test']
     });
@@ -1042,7 +1050,8 @@ test("Get moments by media ID", async () => {
         media_id: differentMediaId,
         from_time: Date.now() - 3000,
         to_time: Date.now() - 2000,
-        description: 'Third test moment with different media',
+        what_old: '',
+        what_new: 'Third test moment with different media',
         importance_score: 0.7,
         labels: ['Test']
     });

@@ -9,12 +9,37 @@ import MomentsContent from './content/MomentsContent';
 import SearchContent from './content/SearchContent';
 import SearchResultContent from './content/SearchResultContent';
 import SettingsContent from './content/SettingsContent';
-import { conn, fetchCameras, setAgentCards, setConn, subscription, tab, type Tab } from './shared';
+import { conn, fetchCameras, setAgentCards, setConn, setMotionMessages, subscription, tab, type Tab } from './shared';
 import SideBar from './SideBar';
 import { connectWebSocket, newMessage } from './video/connection';
 import ViewContent from './ViewContent';
+import type { FrameMotionEnergyMessage } from '~/shared/engine';
+import type { ServerEphemeralState } from '~/shared';
 
 export default function App() {
+
+    onMount(async () => {
+        // fetch server's global states
+        try {
+            const response = await fetch('/state');
+            const data: ServerEphemeralState = await response.json();
+            console.log('Fetched global state from server:', data);
+            setMotionMessages(data.motion_energy_messages || []);
+        } catch (error) {
+            console.error('Error fetching global state from server:', error);
+        }
+    })
+
+    createEffect(() => {
+        const m = newMessage();
+        if (!m) return;
+
+        if (m.type === 'frame_motion_energy') {
+            // console.log("Motion energy data received in MotionBar:", m);
+            setMotionMessages(prev => [...prev, m].slice(-100)); // Keep last 100 messages
+        }
+    });
+
     onMount(() => {
         const conn = connectWebSocket();
         setConn(conn);

@@ -1,9 +1,10 @@
+export type ServerRegistrationMessage = {
+    type: "i_am_server";
+    token?: string;
+}
 
 export type ServerToEngine =
-    {
-        type: "i_am_server";
-        token?: string;
-    } | {
+    | {
         type: "frame_binary";
         workers: Partial<{
             'vlm': true,
@@ -45,13 +46,20 @@ export type EngineToServer = {
     type: "media_summary",
     media_id: string;
     summary: Summary
+} | FrameMotionEnergyMessage
+
+export type FrameMotionEnergyMessage = {
+    type: "frame_motion_energy";
+    stream_id: string;
+    frame_id: string;
+    motion_energy: number;
 }
 
-export type EngineReceivedMessage = ServerToEngine | WorkerToEngine;
 export type Moment = {
     from_time: number;
     to_time: number;
-    description: string,
+    what_old: string,
+    what_new: string,
     importance_score: number,
     labels: string[],
 }

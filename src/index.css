@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 
 @layer base {
+
   /* For Webkit-based browsers (Chrome, Safari, Edge) */
   ::-webkit-scrollbar {
     width: 12px;
@@ -8,16 +9,19 @@
   }
 
   ::-webkit-scrollbar-track {
-    background: #1a1a1a; /* Dark track background */
+    background: #1a1a1a;
+    /* Dark track background */
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #4a4a4a; /* Darker thumb */
+    background: #4a4a4a;
+    /* Darker thumb */
     border-radius: 100vh;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #6a6a6a; /* Slightly lighter on hover */
+    background: #6a6a6a;
+    /* Slightly lighter on hover */
   }
 
   /* For Firefox */
@@ -32,7 +36,7 @@ body {
   font-family: 'Inter', sans-serif;
 }
 
-@theme {  
+@theme {
   --font-montserrat: "Montserrat", sans-serif;
   --font-nunito: "Nunito", sans-serif;
 }
@@ -73,7 +77,9 @@ body {
   --color-neu-925: #0f0f0f;
   --color-neu-950: #0a0a0a;
 }
+
 @layer base {
+
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
@@ -89,12 +95,11 @@ body {
 }
 
 .btn-secondary {
-  @apply flex items-center space-x-2 text-neutral-400 hover:text-white transition-all duration-100 bg-neutral-900 hover:bg-neutral-800 border 
-  border-neutral-800 hover:border-neutral-700 hover:drop-shadow-2xl px-4 py-2 rounded-lg
+  @apply flex items-center space-x-2 text-neutral-400 hover:text-white transition-all duration-100 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 hover:drop-shadow-2xl px-4 py-2 rounded-lg
 }
 
-.btn-tertiary {
-  @apply flex items-center space-x-2 text-neutral-400 hover:text-white transition-all duration-100 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700/0 hover:border-neutral-700 px-4 py-2 rounded-full
+.btn-small {
+  @apply px-2 py-1.5 text-xs font-medium text-neu-400 hover:text-white bg-neu-800 rounded-lg hover:bg-neu-850 border border-neu-750 focus:outline-none flex items-center space-x-1 transition-all duration-100
 }
 
 .push-down {
@@ -109,9 +114,10 @@ body {
       opacity: 0;
       transform: translateY(-50px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
-      }
+    }
   }
 }

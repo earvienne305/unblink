@@ -16,8 +16,9 @@ import { create_webhook_forward } from "./backend/webhook";
 import { spawn_worker } from "./backend/worker_connect/shared";
 import { start_stream, start_stream_file, start_streams, stop_stream } from "./backend/worker_connect/worker_stream_connector";
 import homepage from "./index.html";
-import type { ClientToServerMessage, DbUser, RecordingsResponse, RESTQuery } from "./shared";
+import type { ClientToServerMessage, DbUser, ServerEphemeralState, RecordingsResponse, RESTQuery } from "./shared";
 import path from "node:path";
+import type { FrameMotionEnergyMessage } from "./shared/engine";
 
 // Check args for "admin" mode
 if (process.argv[2] === "admin") {
@@ -36,8 +37,15 @@ const clients = new Map<ServerWebSocket, WsClient>();
 const { settings, setSettings } = await load_settings();
 const { secrets } = await load_secrets();
 const forward_to_webhook = create_webhook_forward({ settings });
+
+// For things we don't want to persist in database 
+// But want to be readily available upon new client connections
+const state: ServerEphemeralState = {
+    motion_energy_messages: [],
+}
 const engine_conn = connect_to_engine({
     ENGINE_URL,
+    state: () => state,
     clients: () => clients,
     forward_to_webhook,
 });
@@ -340,6 +348,11 @@ const server = Bun.serve({
                 const media_units = await getMediaUnitsByEmbedding(embedding);
                 console.log('media_units', media_units)
                 return Response.json({ media_units });
+            }
+        },
+        '/state': {
+            GET: async () => {
+                return Response.json(state);
             }
         }
     },

@@ -49,7 +49,8 @@ export interface Moment {
     media_id: string;
     from_time: number;
     to_time: number;
-    description?: string | null;
-    importance_score?: number | null;
+    what_old: string;
+    what_new: string;
+    importance_score: number;
     labels: string[];
 }

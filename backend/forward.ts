@@ -1,10 +1,12 @@
 import type { ServerWebSocket } from "bun";
 import { decode } from "cbor-x";
-import fs from "fs/promises";
+import { randomUUID } from "crypto";
+import path from "path";
 import type { WorkerToServerMessage } from "~/shared";
 import type { WebhookMessage } from "~/shared/alert";
 import type { Conn } from "~/shared/Conn";
 import type { EngineToServer, ServerToEngine } from "~/shared/engine";
+import { FRAMES_DIR } from "./appdir";
 import { createMediaUnit } from "./database/utils";
 import type { WsClient } from "./WsClient";
 
@@ -54,7 +56,8 @@ export const createForwardFunction = (opts: {
         //     });
         // }
 
-        if (decoded.type === 'frame_file') {
+        // Occasionally, does indexing / object detection on the frame
+        if (decoded.type === 'frame') {
             const now = Date.now();
             if (!state.streams[decoded.stream_id]) {
                 state.streams[decoded.stream_id] = {
@@ -63,43 +66,7 @@ export const createForwardFunction = (opts: {
                 }
             }
 
-            // Store in database
-            const mu = {
-                id: decoded.frame_id,
-                type: 'frame',
-                at_time: Date.now(), // Using timestamp instead of Date object
-                description: null,
-                embedding: null,
-                media_id: decoded.stream_id,
-                path: decoded.path,
-            };
-
-            (async () => {
-                // Throttle engine forwarding to 1 frame every 10 seconds
-                if (now - state.streams[decoded.stream_id]!.last_engine_sent__index < 10000) return;
-                state.streams[decoded.stream_id]!.last_engine_sent__index = now;
-
-                await createMediaUnit(mu)
-
-                // Forward to AI engine for 
-                // 1. Compute embedding  
-                // 2. VLM inference
-                const engine_conn = opts.engine_conn();
-
-                // Read the frame binary from the file
-                const frame = await fs.readFile(decoded.path);
-                const msg: ServerToEngine = {
-                    type: "frame_binary",
-                    workers: {
-                        'vlm': true,
-                        'embedding': true,
-                    },
-                    stream_id: decoded.stream_id,
-                    frame_id: decoded.frame_id,
-                    frame,
-                }
-                engine_conn.send(msg);
-            })();
+            const frame_id = randomUUID();
 
             (async () => {
                 // Forward to object detection worker if enabled
@@ -110,16 +77,59 @@ export const createForwardFunction = (opts: {
                 state.streams[decoded.stream_id]!.last_engine_sent__object_detection = now;
 
                 // logger.info({ path: decoded.path }, `Forwarding frame ${decoded.frame_id} from stream ${decoded.stream_id} to object detection worker.`);
+
                 const msg: ServerToEngine = {
                     type: "frame_binary",
                     workers: {
                         'object_detection': true,
                     },
                     stream_id: decoded.stream_id,
-                    frame_id: decoded.frame_id,
-                    frame: await fs.readFile(decoded.path),
+                    frame_id,
+                    frame: decoded.data
                 }
                 opts.engine_conn().send(msg);
+            })();
+
+
+            (async () => {
+                // Throttle engine forwarding to 1 frame every 10 seconds
+                if (now - state.streams[decoded.stream_id]!.last_engine_sent__index < 10000) return;
+                state.streams[decoded.stream_id]!.last_engine_sent__index = now;
+
+                // Write data to file
+                const _path = path.join(FRAMES_DIR, `${frame_id}.jpg`);
+                await Bun.write(_path, decoded.data);
+
+                // Store in database
+                const mu = {
+                    id: frame_id,
+                    type: 'frame',
+                    at_time: Date.now(), // Using timestamp instead of Date object
+                    description: null,
+                    embedding: null,
+                    media_id: decoded.stream_id,
+                    path: _path,
+                };
+
+                await createMediaUnit(mu)
+
+                // Forward to AI engine for 
+                // 1. Compute embedding  
+                // 2. VLM inference
+                const engine_conn = opts.engine_conn();
+
+                // Read the frame binary from the file
+                const msg: ServerToEngine = {
+                    type: "frame_binary",
+                    workers: {
+                        'vlm': true,
+                        'embedding': true,
+                    },
+                    stream_id: decoded.stream_id,
+                    frame_id,
+                    frame: decoded.data,
+                }
+                engine_conn.send(msg);
             })();
         }
     }

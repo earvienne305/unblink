@@ -108,7 +108,8 @@ export async function initDatabase(client: Database) {
                 media_id TEXT NOT NULL,
                 from_time INTEGER NOT NULL,
                 to_time INTEGER NOT NULL,
-                description TEXT,
+                what_old TEXT,
+                what_new TEXT,
                 importance_score REAL,
                 labels TEXT
             );
@@ -122,7 +123,7 @@ export async function initDatabase(client: Database) {
             // Add the media_id column to the existing table, allowing NULL initially
             await client.exec("ALTER TABLE moments ADD COLUMN media_id TEXT");
             logger.info("Column 'media_id' added to 'moments' table.");
-            
+
             // Update existing rows to have a default value if necessary, then make it NOT NULL
             await client.exec("UPDATE moments SET media_id = 'default-media-id' WHERE media_id IS NULL");
         }

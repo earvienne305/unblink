@@ -296,25 +296,23 @@ export async function streamMedia(stream: StartStreamArg, onMessage: (msg: Strea
         onMessage(frame_msg);
     }
 
+    // let last_save_time = 0;
+    // async function saveFrameForObjectDetection(encodedData: Uint8Array) {
+    //     const now = Date.now();
+    //     if (now - last_save_time < 1000) return;
+    //     last_save_time = now;
 
+    // const frame_id = uuid()
+    // const _path = path.join(FRAMES_DIR, `${frame_id}.jpg`);
+    // await Bun.write(_path, encodedData);
 
-    let last_save_time = 0;
-    async function saveFrameForObjectDetection(encodedData: Uint8Array) {
-        const now = Date.now();
-        if (now - last_save_time < 1000) return;
-        last_save_time = now;
-
-        const frame_id = uuid()
-        const _path = path.join(FRAMES_DIR, `${frame_id}.jpg`);
-        await Bun.write(_path, encodedData);
-
-        const frame_file_msg: StreamMessage = {
-            type: "frame_file",
-            frame_id,
-            path: _path,
-        };
-        onMessage(frame_file_msg);
-    }
+    // const frame_file_msg: StreamMessage = {
+    //     type: "frame_file",
+    //     frame_id,
+    //     path: _path,
+    // };
+    // onMessage(frame_file_msg);
+    // }
 
 
 
@@ -342,7 +340,7 @@ export async function streamMedia(stream: StartStreamArg, onMessage: (msg: Strea
                 // For skipTranscode, we still need to encode for object detection
                 using encodedPacket = await videoEncoder.encode(frameToUse);
                 if (encodedPacket?.data) {
-                    await saveFrameForObjectDetection(encodedPacket.data);
+                    // await saveFrameForObjectDetection(encodedPacket.data);
                     if (output) await writeToOutputFile(encodedPacket, output);
                 }
             } else {
@@ -350,7 +348,7 @@ export async function streamMedia(stream: StartStreamArg, onMessage: (msg: Strea
                 using encodedPacket = await videoEncoder.encode(frameToUse);
                 if (encodedPacket?.data) {
                     await sendFrameMessage(encodedPacket);
-                    await saveFrameForObjectDetection(encodedPacket.data);
+                    // await saveFrameForObjectDetection(encodedPacket.data);
                     if (output) await writeToOutputFile(encodedPacket, output);
                 }
             }

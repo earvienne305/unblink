@@ -1,12 +1,12 @@
 
 import type { MediaUnit } from "./database";
-import type { EngineToServer } from "./engine";
+import type { EngineToServer, FrameMotionEnergyMessage } from "./engine";
 
-export type FrameMessage = {
-    type: "frame_file";
-    frame_id: string;
-    path: string;
-}
+// export type FrameMessage = {
+//     type: "frame_file";
+//     frame_id: string;
+//     path: string;
+// }
 
 export type StreamMessage = {
     type: "codec";
@@ -21,7 +21,8 @@ export type StreamMessage = {
 } | {
     type: 'frame';
     data: Uint8Array;
-} | FrameMessage;
+}
+// | FrameMessage;
 
 
 export type Subscription = {
@@ -118,3 +119,7 @@ export type RESTQuery = {
         value: any;
     }[]
 }
+
+export type ServerEphemeralState = {
+    motion_energy_messages: FrameMotionEnergyMessage[]
+};

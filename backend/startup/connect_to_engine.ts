@@ -1,21 +1,23 @@
 import type { ServerWebSocket } from "bun";
 
-import type { ServerToClientMessage } from "~/shared";
+import type { ServerEphemeralState, ServerToClientMessage } from "~/shared";
 import type { WebhookMessage } from "~/shared/alert";
 import { Conn } from "~/shared/Conn";
-import type { EngineToServer, ServerToEngine } from "~/shared/engine";
+import type { EngineToServer, ServerRegistrationMessage, ServerToEngine } from "~/shared/engine";
 import { createMoment, getMediaUnitById, updateMediaUnit } from "../database/utils";
 import { logger } from "../logger";
 import type { WsClient } from "../WsClient";
 
+
 export function connect_to_engine(props: {
+    state: () => ServerEphemeralState,
     ENGINE_URL: string,
     forward_to_webhook: (msg: WebhookMessage) => Promise<void>,
     clients: () => Map<ServerWebSocket, WsClient>,
 }) {
-    const engine_conn = new Conn<ServerToEngine, EngineToServer>(`wss://${props.ENGINE_URL}/ws`, {
+    const engine_conn = new Conn<ServerRegistrationMessage | ServerToEngine, EngineToServer>(`wss://${props.ENGINE_URL}/ws`, {
         onOpen() {
-            const msg: ServerToEngine = {
+            const msg: ServerRegistrationMessage = {
                 type: "i_am_server",
             }
             engine_conn.send(msg);
@@ -37,7 +39,8 @@ export function connect_to_engine(props: {
                         media_id: decoded.media_id,
                         from_time: moment.from_time,
                         to_time: moment.to_time,
-                        description: moment.description,
+                        what_old: moment.what_old,
+                        what_new: moment.what_new,
                         importance_score: moment.importance_score,
                         labels: moment.labels,
                     })
@@ -49,7 +52,7 @@ export function connect_to_engine(props: {
 
             if (decoded.type === 'frame_description') {
                 // Store in database
-                logger.info({ decoded }, `Received description`);
+                // logger.info({ decoded }, `Received description`);
                 updateMediaUnit(decoded.frame_id, {
                     description: decoded.description,
                 })
@@ -112,6 +115,17 @@ export function connect_to_engine(props: {
                 for (const [, client] of props.clients()) {
                     client.send(decoded);
                 }
+            }
+
+            if (decoded.type === 'frame_motion_energy') {
+                // Forward to clients
+                for (const [, client] of props.clients()) {
+                    client.send(decoded);
+                }
+
+                const state = props.state();
+                state.motion_energy_messages.push(decoded);
+                // logger.info({ decoded }, "Received motion energy data");
             }
         }
     });

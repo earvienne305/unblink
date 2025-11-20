@@ -1,13 +1,14 @@
 import { formatDistance } from "date-fns";
 import { FaSolidChevronLeft, FaSolidChevronRight } from "solid-icons/fa";
 import { For, Show, createEffect, createSignal, onCleanup } from "solid-js";
-import ArkSwitch from "./ark/ArkSwitch";
-import CanvasVideo from "./CanvasVideo";
-import { cameras, relevantAgentCards, setAgentCards, setSubscription, settings, subscription, tab } from "./shared";
 import { v4 as uuid } from 'uuid';
 import type { RESTQuery } from "~/shared";
 import type { MediaUnit } from "~/shared/database";
+import ConfigureViewDialog from "./ConfigureViewDialog";
+import CanvasVideo from "./CanvasVideo";
+import ActivityBar from "./ActivityBar";
 import LoadingSkeleton from "./search/LoadingSkeleton";
+import { cameras, relevantAgentCards, setAgentCards, setSubscription, settings, tab } from "./shared";
 
 const GAP_SIZE = '8px';
 
@@ -32,7 +33,7 @@ function useAgentBar() {
         setShowAgentBar,
         Toggle: () => <button
             onClick={() => setShowAgentBar(prev => !prev)}
-            class="px-2 py-1.5 text-xs font-medium text-white bg-neu-800 rounded-lg hover:bg-neu-850 border border-neu-750 focus:outline-none flex items-center space-x-1">
+            class="btn-small">
             <Show when={showAgentBar()} fallback={<FaSolidChevronLeft class="w-4 h-4 " />}>
                 <FaSolidChevronRight class="w-4 h-4 " />
             </Show>
@@ -135,15 +136,13 @@ export default function ViewContent() {
                         <div class="h-full w-full flex flex-col space-y-2">
                             <div class="flex-none flex items-center space-x-6 py-2 px-4 bg-neu-900 rounded-2xl border border-neu-800 h-14">
                                 <div class="flex-1 text-sm text-neu-400 line-clamp-1">Viewing {viewedMedias().length} streams</div>
-                                <Show when={settings()['object_detection_enabled'] === 'true'}>
-                                    <div>
-                                        <ArkSwitch
-                                            label="Show detection boxes"
-                                            checked={showDetections}
-                                            onCheckedChange={(e) => setShowDetections(e.checked)}
-                                        />
-                                    </div>
-                                </Show>
+                                <div>
+                                    <ConfigureViewDialog
+                                        disabled={settings()['object_detection_enabled'] !== 'true'}
+                                        showDetections={showDetections()}
+                                        onSave={(s) => setShowDetections(s.showDetections)}
+                                    />
+                                </div>
 
                                 <Show when={!agentBar.showAgentBar()}>
                                     <agentBar.Toggle />
@@ -173,6 +172,12 @@ export default function ViewContent() {
                         </div>
                     </Show>
                 </div>
+
+                <Show when={some_media_is_live()}>
+
+                    <ActivityBar viewedMedias={viewedMedias} />
+
+                </Show>
             </div>
 
             <Show when={some_media_is_live()}>
