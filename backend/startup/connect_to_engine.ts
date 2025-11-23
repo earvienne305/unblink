@@ -37,7 +37,7 @@ export function connect_to_engine(props: {
 
             if (decoded.type === 'frame_description') {
                 // Store in database
-                logger.info({ decoded }, `Received description`);
+                // logger.info({ decoded }, `Received description`);
                 updateMediaUnit(decoded.frame_id, {
                     description: decoded.description,
                 })
@@ -157,7 +157,7 @@ export function connect_to_engine(props: {
                             worker: props.worker_stream,
                             media_id: decoded.media_id,
                             should_write_moment: false,
-                            delete_on_close: !isMoment, // Delete if it was NOT a real moment
+                            discard_previous_maybe_moment: !isMoment, // Delete if it was NOT a real moment
                         });
 
                         // Clear the moment ID from state after use

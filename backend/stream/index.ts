@@ -325,8 +325,6 @@ export async function streamMedia(
         },
     });
 
-    console.log("Video encoder created", videoEncoder);
-
     async function sendFrameMessage(packet: Packet) {
         if (!packet.data) return;
         const frame_msg: StreamMessage = {
@@ -422,7 +420,7 @@ export async function streamMedia(
             }
         } else if (momentOutput !== null) {
             // should_write_moment is false - close the moment output
-            const shouldDelete = streamState?.delete_on_close === true;
+            const shouldDelete = streamState?.discard_previous_maybe_moment === true;
 
             if (shouldDelete) {
                 logger.info({ output_id: momentOutput.output_id }, "Moment was false alarm, closing and deleting output");

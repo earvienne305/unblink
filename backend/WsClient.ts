@@ -47,6 +47,7 @@ export class WsClient {
                         id: new_sub.id,
                         uri: moment.clip_path,
                         should_record_moments: false,
+                        is_ephemeral: true,
                     });
                 }
             }
@@ -75,7 +76,7 @@ export class WsClient {
 
             if (msg.type === 'codec' || msg.type === 'frame') {
                 const is_subscribed = this._subscription.streams.some(s => {
-                    return s.id === msg.media_id;
+                    return s.id === msg.id;
                 });
                 if (!is_subscribed) {
                     // Not subscribed to this stream

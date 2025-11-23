@@ -54,14 +54,14 @@ export function set_moment_state(opts: {
     media_id: string,
     should_write_moment: boolean,
     current_moment_id?: string,
-    delete_on_close?: boolean,
+    discard_previous_maybe_moment?: boolean,
 }) {
     const msg: ServerToWorkerStreamMessage = {
         type: 'set_moment_state',
         media_id: opts.media_id,
         should_write_moment: opts.should_write_moment,
         current_moment_id: opts.current_moment_id,
-        delete_on_close: opts.delete_on_close,
+        discard_previous_maybe_moment: opts.discard_previous_maybe_moment,
     }
 
     opts.worker.postMessage(msg);

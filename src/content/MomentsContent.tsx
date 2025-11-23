@@ -29,7 +29,7 @@ export default function MomentsContent() {
                         <For each={moments()}>
                             {(moment) => (
                                 <div
-                                    class="moment-card cursor-pointer transition-transform hover:scale-105 hover:shadow-lg"
+                                    class="moment-card cursor-pointer transition-transform"
                                     onClick={() => handleMomentClick(moment)}
                                 >
                                     <div class="aspect-video bg-neu-900 relative">

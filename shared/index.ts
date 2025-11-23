@@ -37,7 +37,7 @@ export type StreamMessage = {
     media_id: string;
     moment_id: string;
     clip_path: string;
-}
+};
 
 
 export type Subscription = {
@@ -68,24 +68,21 @@ export type ServerToClientMessage = (WorkerToServerMessage | EngineToServer | Fr
     session_id?: string;
 }
 
-export type WorkerStreamToServerMessage = (StreamMessage & { media_id: string }) | {
+export type WorkerStreamToServerMessage = (StreamMessage | {
     type: "error";
-    media_id: string;
 } | {
     type: "restarting";
-    media_id: string;
 } | {
     type: 'starting';
-    media_id: string;
-}
+}) & PassThroughOpts
 
 export type ServerToWorkerStreamMessage_Add_Stream = {
     type: 'start_stream';
-    id: string;
     uri: string;
     saveDir?: string;
     should_record_moments?: boolean;
-}
+} & PassThroughOpts
+
 export type ServerToWorkerStreamMessage_Stop_Stream = {
     type: 'stop_stream',
     id: string,
@@ -95,12 +92,16 @@ export type ServerToWorkerStreamMessage_Set_Moment_State = {
     media_id: string,
     should_write_moment: boolean,
     current_moment_id?: string,
-    delete_on_close?: boolean,
+    discard_previous_maybe_moment?: boolean,
+}
+export type PassThroughOpts = {
+    id: string
+    is_ephemeral?: boolean
 }
 export type ServerToWorkerStreamMessage =
     | ServerToWorkerStreamMessage_Add_Stream
     | ServerToWorkerStreamMessage_Stop_Stream
-    | ServerToWorkerStreamMessage_Set_Moment_State;
+    | ServerToWorkerStreamMessage_Set_Moment_State
 
 // export type ServerToWorkerObjectDetectionMessage = {
 //     media_id: string;

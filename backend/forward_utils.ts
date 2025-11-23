@@ -1,6 +1,9 @@
 import { randomUUID } from "crypto";
 import type { ServerEphemeralState } from "~/shared";
 import { logger } from "./logger";
+import path from "path";
+import { FRAMES_DIR } from "./appdir";
+import { createMediaUnit } from "./database/utils";
 
 export type Builder = {
     keys: string[],
@@ -10,6 +13,42 @@ export type Builder = {
 };
 
 export const builders: { [builder_id: string]: Builder } = {
+    'indexing': {
+        keys: ['vlm', 'embedding'],
+        interval: 3000,
+        should_run({ in_moment, last_time_run }) {
+            if (in_moment) return true;
+            const now = Date.now();
+
+            // Ocassionally run every minute
+            return now - last_time_run > 60000
+        },
+        async write(media_id: string, media_unit_id: string, data: Uint8Array) {
+            // Write data to file
+            const _path = path.join(FRAMES_DIR, `${media_unit_id}.jpg`);
+            await Bun.write(_path, data);
+
+            // Store in database
+            const mu = {
+                id: media_unit_id,
+                type: 'frame',
+                at_time: Date.now(), // Using timestamp instead of Date object
+                description: null,
+                embedding: null,
+                media_id,
+                path: _path,
+            };
+
+            await createMediaUnit(mu)
+        }
+    },
+    'object_detection': {
+        keys: ['object_detection'],
+        interval: 1000,
+        should_run({ in_moment }) {
+            return true
+        },
+    },
     'motion_energy': {
         keys: ['motion_energy'],
         interval: 1000,

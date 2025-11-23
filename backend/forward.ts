@@ -66,29 +66,29 @@ export const createForwardFunction = (opts: ForwardingOpts) => {
         }
 
 
-        if (decoded.type === 'frame') {
+        if (decoded.type === 'frame' && !decoded.is_ephemeral) {
             const media_unit_id = randomUUID();
             const msg: ServerToEngine = {
                 frame: decoded.data,
                 frame_id: media_unit_id,
-                media_id: decoded.media_id,
+                media_id: decoded.id,
                 type: 'frame_binary',
                 workers: {}
             }
 
-            const in_moment = opts.state().active_moments.has(decoded.media_id);
-            maybeInitState(decoded.media_id)
+            const in_moment = opts.state().active_moments.has(decoded.id);
+            maybeInitState(decoded.id)
             const now = Date.now();
             for (const [builder_id, builder] of Object.entries(builders)) {
-                const last_time_run = state.streams[decoded.media_id]![builder_id] ?? 0;
+                const last_time_run = state.streams[decoded.id]![builder_id] ?? 0;
                 if (!builder.should_run({ in_moment, last_time_run })) continue;
                 if (now - last_time_run < builder.interval) continue;
-                state.streams[decoded.media_id]![builder_id] = now;
+                state.streams[decoded.id]![builder_id] = now;
 
                 if (builder_id == 'indexing') {
-                    logger.info({ media_id: decoded.media_id }, 'Indexing ...')
+                    logger.info({ media_id: decoded.id }, 'Indexing ...')
                 }
-                await builder.write?.(decoded.media_id, media_unit_id, decoded.data)
+                await builder.write?.(decoded.id, media_unit_id, decoded.data)
                 for (const key of builder.keys) {
                     msg.workers[key] = true;
                 }
@@ -100,7 +100,7 @@ export const createForwardFunction = (opts: ForwardingOpts) => {
 
             // Buffer frames for moment enrichment
             if (in_moment) {
-                updateMomentFrames(opts.state(), decoded.media_id, media_unit_id, decoded.data, now);
+                updateMomentFrames(opts.state(), decoded.id, media_unit_id, decoded.data, now);
             }
         }
     }

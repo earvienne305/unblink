@@ -1,5 +1,5 @@
 import { encode } from "cbor-x";
-import type { ServerToWorkerStreamMessage, WorkerStreamToServerMessage } from "../../shared";
+import type { PassThroughOpts, ServerToWorkerStreamMessage, WorkerStreamToServerMessage } from "../../shared";
 import { logger } from "../logger";
 import { streamMedia, type StartStreamArg } from "../stream/index";
 import type { WorkerState } from "./worker_state";
@@ -10,6 +10,7 @@ logger.info("Worker 'stream' started");
 const workerState: WorkerState = {
     streams: new Map(),
 };
+
 
 const loops: {
     [loop_id: string]: {
@@ -32,20 +33,20 @@ function sendMessage(msg: WorkerStreamToServerMessage) {
     self.postMessage(worker_msg, [worker_msg.buffer]);
 }
 
-async function startStream(stream: StartStreamArg, signal: AbortSignal) {
+async function startStream(stream: StartStreamArg, signal: AbortSignal, passthrough: PassThroughOpts) {
     logger.info(`Starting media stream for ${stream.id}`);
 
     await streamMedia(stream, (msg) => {
         const worker_msg: WorkerStreamToServerMessage = {
             ...msg,
-            media_id: stream.id,
+            ...passthrough,
         }
 
         sendMessage(worker_msg);
     }, signal, () => workerState);
 }
 
-async function startFaultTolerantStream(stream: StartStreamArg, signal: AbortSignal) {
+async function startFaultTolerantStream(stream: StartStreamArg, signal: AbortSignal, passthrough: PassThroughOpts) {
     const state = {
         hearts: 5,
     }
@@ -56,7 +57,7 @@ async function startFaultTolerantStream(stream: StartStreamArg, signal: AbortSig
                 logger.info(`Stream ${stream.id} has been stable for 30 seconds, full recovery.`);
                 state.hearts = 5;
             }, 30000);
-            await startStream(stream, signal);
+            await startStream(stream, signal, passthrough);
             logger.info('Stream ended gracefully, stopping.')
             break;
         } catch (e) {
@@ -78,7 +79,16 @@ async function startFaultTolerantStream(stream: StartStreamArg, signal: AbortSig
 
 self.addEventListener("message", async (event) => {
     const msg: ServerToWorkerStreamMessage = event.data;
+
+
     if (msg.type === 'start_stream') {
+
+        // Make all keys nonnullable
+        const passthrough: Required<PassThroughOpts> = {
+            id: msg.id,
+            is_ephemeral: msg.is_ephemeral as any,
+        }
+
         const loop_id = msg.id;
         logger.info(`Starting stream ${loop_id} with URI ${msg.uri}`);
 
@@ -95,10 +105,10 @@ self.addEventListener("message", async (event) => {
             };
 
             startFaultTolerantStream({
-                id: msg.id,
+                id: loop_id,
                 uri: msg.uri,
                 save_location: msg.saveDir,
-            }, abortController.signal);
+            }, abortController.signal, passthrough);
         }
     }
 
@@ -119,20 +129,20 @@ self.addEventListener("message", async (event) => {
             media_id: msg.media_id,
             should_write_moment: msg.should_write_moment,
             moment_id: msg.current_moment_id,
-            delete_on_close: msg.delete_on_close,
+            discard_previous_maybe_moment: msg.discard_previous_maybe_moment,
         }, 'Setting moment state');
 
         const streamState = workerState.streams.get(msg.media_id);
         if (streamState) {
             streamState.should_write_moment = msg.should_write_moment;
             streamState.current_moment_id = msg.current_moment_id;
-            streamState.delete_on_close = msg.delete_on_close;
+            streamState.discard_previous_maybe_moment = msg.discard_previous_maybe_moment;
         } else {
             // Initialize if doesn't exist
             workerState.streams.set(msg.media_id, {
                 should_write_moment: msg.should_write_moment,
                 current_moment_id: msg.current_moment_id,
-                delete_on_close: msg.delete_on_close,
+                discard_previous_maybe_moment: msg.discard_previous_maybe_moment,
             });
         }
     }
