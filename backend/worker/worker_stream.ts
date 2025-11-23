@@ -109,6 +109,7 @@ self.addEventListener("message", async (event) => {
                 id: loop_id,
                 uri: msg.uri,
                 save_location: msg.saveDir,
+                is_ephemeral: msg.is_ephemeral,
             }, abortController.signal, passthrough);
         }
     }

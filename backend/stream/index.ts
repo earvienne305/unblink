@@ -38,6 +38,7 @@ import {
     FilterPreset,
     MediaInput,
     MediaOutput,
+    Rational,
 } from "node-av";
 import path from "path";
 import { v4 as uuid } from 'uuid';
@@ -151,6 +152,7 @@ type OutputFileObject = {
     mediaOutput: MediaOutput;
     videoFileOutputIndex: number;
     path: string;
+    startTime: number | null; // Wall-clock time when first frame was written (ms)
 };
 
 class OutputFile {
@@ -177,12 +179,13 @@ class OutputFile {
 
         // Copy codec parameters
         stream.codecpar.fromContext(codecContext);
-        stream.timeBase = codecContext.timeBase;
+        // Use millisecond timebase for moment clips (matches our timestamp generation)
+        stream.timeBase = new Rational(1, 1000);
 
         // Write header immediately
         await mediaOutput.getFormatContext().writeHeader();
 
-        return { output_id, from, mediaOutput, videoFileOutputIndex: stream.index, path: filePath };
+        return { output_id, from, mediaOutput, videoFileOutputIndex: stream.index, path: filePath, startTime: null };
     }
 
     static async close(obj: OutputFileObject): Promise<string> {
@@ -218,6 +221,7 @@ export type StartStreamArg = {
     id: string;
     uri: string;
     save_location?: string;
+    is_ephemeral?: boolean; // True for moment playback, false for live streams
 }
 
 export async function streamMedia(
@@ -336,10 +340,22 @@ export async function streamMedia(
     }
 
     async function writeToOutputFile(packet: Packet, output: OutputFileObject) {
-        // Write to file output
         using cloned = packet.clone();
         if (cloned) {
+            const now = Date.now();
+
+            // Initialize start time on first frame
+            if (output.startTime === null) {
+                output.startTime = now;
+            }
+
+            // Calculate timestamp based on elapsed wall-clock time
+            const elapsedMs = now - output.startTime;
+
+            cloned.pts = BigInt(elapsedMs);
+            cloned.dts = BigInt(elapsedMs);
             cloned.streamIndex = output.videoFileOutputIndex;
+
             await output.mediaOutput.getFormatContext().interleavedWriteFrame(cloned);
         }
     }
@@ -450,14 +466,43 @@ export async function streamMedia(
                 continue;
             }
 
-            const now = Date.now();
-            // Limit frame rate to 30 FPS
-            if (now - last_send_time < 1000 / 30) {
-                packet.free();
-                decodedFrame.free();
-                continue;
+            // Handle frame timing
+            if (stream.is_ephemeral) {
+                // For ephemeral streams (moment playback), respect original timing from file
+                // Track start time and first PTS to calculate proper delays
+                if (last_send_time === 0) {
+                    last_send_time = Date.now();
+                    // Store first packet PTS
+                    if (!('firstPacketPts' in stream)) {
+                        (stream as any).firstPacketPts = packet.pts;
+                        (stream as any).playbackStartTime = last_send_time;
+                    }
+                }
+
+                // Calculate when this frame should be sent based on packet timestamp
+                const firstPts = (stream as any).firstPacketPts || 0n;
+                const playbackStartTime = (stream as any).playbackStartTime || last_send_time;
+
+                // Convert PTS to milliseconds
+                const elapsedFileTime = Number((packet.pts - firstPts) * BigInt(videoStream.timeBase.num * 1000) / BigInt(videoStream.timeBase.den));
+                const targetTime = playbackStartTime + elapsedFileTime;
+                const now = Date.now();
+                const delay = targetTime - now;
+
+                if (delay > 0) {
+                    // Wait until it's time to send this frame
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            } else {
+                // For live streams, limit to 30 FPS
+                const now = Date.now();
+                if (now - last_send_time < 1000 / 30) {
+                    packet.free();
+                    decodedFrame.free();
+                    continue;
+                }
+                last_send_time = now;
             }
-            last_send_time = now;
 
             try {
                 await processPacket(packet, decodedFrame);
