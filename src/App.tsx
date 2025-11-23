@@ -6,6 +6,7 @@ import ArkToast from './ark/ArkToast';
 import Authed from './Authed';
 import HomeContent from './content/HomeContent';
 import MomentsContent from './content/MomentsContent';
+import MomentPlaybackContent from './content/MomentPlaybackContent';
 import SearchContent from './content/SearchContent';
 import SearchResultContent from './content/SearchResultContent';
 import SettingsContent from './content/SettingsContent';
@@ -89,6 +90,7 @@ export default function App() {
         return {
             'home': HomeContent,
             'moments': MomentsContent,
+            'moment_playback': MomentPlaybackContent,
             'view': ViewContent,
             'search': SearchContent,
             'search_result': SearchResultContent,

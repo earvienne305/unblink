@@ -1,7 +1,5 @@
 import { encode } from "cbor-x";
-import path from "path";
 import type { ServerToWorkerStreamMessage, WorkerStreamToServerMessage } from "../../shared";
-import { RECORDINGS_DIR } from "../appdir";
 import { logger } from "../logger";
 import { streamMedia, type StartStreamArg } from "../stream/index";
 import type { WorkerState } from "./worker_state";
@@ -59,6 +57,8 @@ async function startFaultTolerantStream(stream: StartStreamArg, signal: AbortSig
                 state.hearts = 5;
             }, 30000);
             await startStream(stream, signal);
+            logger.info('Stream ended gracefully, stopping.')
+            break;
         } catch (e) {
             if (recovery_timeout) clearTimeout(recovery_timeout);
             state.hearts -= 1;
@@ -79,15 +79,15 @@ async function startFaultTolerantStream(stream: StartStreamArg, signal: AbortSig
 self.addEventListener("message", async (event) => {
     const msg: ServerToWorkerStreamMessage = event.data;
     if (msg.type === 'start_stream') {
-        logger.info(`Starting stream ${msg.media_id} with URI ${msg.uri}`);
+        const loop_id = msg.id;
+        logger.info(`Starting stream ${loop_id} with URI ${msg.uri}`);
 
         if (msg.uri) {
             const abortController = new AbortController();
-            const loop_id = msg.media_id;
 
             // Initialize state for this stream in global workerState
-            workerState.streams.set(msg.media_id, {
-                should_write_moment: false,
+            workerState.streams.set(loop_id, {
+                should_write_moment: msg.should_record_moments ?? true, // Default to true for backward compatibility
             });
 
             loops[loop_id] = {
@@ -95,7 +95,7 @@ self.addEventListener("message", async (event) => {
             };
 
             startFaultTolerantStream({
-                id: msg.media_id,
+                id: msg.id,
                 uri: msg.uri,
                 save_location: msg.saveDir,
             }, abortController.signal);
@@ -105,13 +105,13 @@ self.addEventListener("message", async (event) => {
 
 
     if (msg.type === 'stop_stream') {
-        logger.info(`Stopping stream ${msg.media_id}`);
         // Stop the stream and clean up resources
-        const loop_id = msg.media_id;
+        const loop_id = msg.id;
+        logger.info(`Stopping stream ${loop_id}`);
         loops[loop_id]?.controller.abort();
 
         // Clean up state for this stream
-        workerState.streams.delete(msg.media_id);
+        workerState.streams.delete(loop_id);
     }
 
     if (msg.type === 'set_moment_state') {

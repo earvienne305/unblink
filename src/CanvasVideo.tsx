@@ -2,7 +2,7 @@ import { createResizeObserver } from "@solid-primitives/resize-observer";
 import { FaSolidSpinner } from "solid-icons/fa";
 import { createEffect, createSignal, onCleanup, onMount, Show, type Accessor } from "solid-js";
 import { newMessage } from "./video/connection";
-import type { ServerToClientMessage } from "~/shared";
+import type { ServerToClientMessage, Subscription } from "~/shared";
 import { subscription } from "./shared";
 import type { DetectionObject } from "~/shared/engine";
 
@@ -252,7 +252,7 @@ class MjpegPlayer {
     }
 }
 
-export default function CanvasVideo(props: { media_id: string, showDetections: Accessor<boolean>, camera_name?: string }) {
+export default function CanvasVideo(props: { media_id: string, showDetections: Accessor<boolean>, name: Accessor<string | undefined>, subscription: Accessor<Subscription | undefined> }) {
     const [canvasRef, setCanvasRef] = createSignal<HTMLCanvasElement>();
     const [containerRef, setContainerRef] = createSignal<HTMLDivElement>();
     const [isDrawing, setIsDrawing] = createSignal(false);
@@ -266,8 +266,9 @@ export default function CanvasVideo(props: { media_id: string, showDetections: A
     });
 
     createEffect(() => {
-        if (player && props.camera_name) {
-            player.setCameraName(props.camera_name);
+        const name = props.name();
+        if (player && name) {
+            player.setCameraName(name);
         }
     });
 
@@ -275,8 +276,9 @@ export default function CanvasVideo(props: { media_id: string, showDetections: A
         const canvas = canvasRef();
         if (canvas && !player) {
             player = new MjpegPlayer(canvas, setIsDrawing);
-            if (props.camera_name) {
-                player.setCameraName(props.camera_name);
+            const name = props.name();
+            if (name) {
+                player.setCameraName(name);
             }
         }
     });
@@ -284,7 +286,7 @@ export default function CanvasVideo(props: { media_id: string, showDetections: A
     createEffect(() => {
         const message = newMessage();
         if (!message) return;
-        const s = subscription();
+        const s = props.subscription();
         if (!s) return;
 
         const isCorrectStreamMessage = (message.type == 'frame' || message.type == 'codec') && message.media_id === props.media_id && message.session_id == s.session_id;

@@ -2,6 +2,7 @@ import { createResource, For, Show } from "solid-js";
 import { FiImage } from "solid-icons/fi";
 import LayoutContent from "./LayoutContent";
 import type { Moment } from "../../shared/database";
+import { setTab } from "../shared";
 
 type MomentWithThumbnail = Moment;
 
@@ -16,6 +17,10 @@ const fetchMoments = async (): Promise<MomentWithThumbnail[]> => {
 export default function MomentsContent() {
     const [moments] = createResource(fetchMoments);
 
+    const handleMomentClick = (moment: Moment) => {
+        setTab({ type: 'moment_playback', moment_id: moment.id });
+    };
+
     return (
         <LayoutContent title="Moments">
             <div class="h-full p-6 overflow-y-auto">
@@ -23,7 +28,10 @@ export default function MomentsContent() {
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                         <For each={moments()}>
                             {(moment) => (
-                                <div class="moment-card">
+                                <div
+                                    class="moment-card cursor-pointer transition-transform hover:scale-105 hover:shadow-lg"
+                                    onClick={() => handleMomentClick(moment)}
+                                >
                                     <div class="aspect-video bg-neu-900 relative">
                                         <Show when={moment.thumbnail_path} fallback={<div class="absolute inset-0 flex items-center justify-center text-neu-600">No Preview</div>}>
                                             <img

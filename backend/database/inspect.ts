@@ -1,4 +1,7 @@
-import { getAllMoments } from "./utils";
+import { getAllMedia, getAllMoments } from "./utils";
 
-const res = await getAllMoments()
-console.log("All moments:", res);
+const mediaRes = await getAllMedia()
+console.log("All media:", mediaRes);
+
+// const res = await getAllMoments()
+// console.log("All moments:", res);

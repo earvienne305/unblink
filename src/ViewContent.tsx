@@ -8,7 +8,7 @@ import ConfigureViewDialog from "./ConfigureViewDialog";
 import CanvasVideo from "./CanvasVideo";
 import ActivityBar from "./ActivityBar";
 import LoadingSkeleton from "./search/LoadingSkeleton";
-import { cameras, relevantAgentCards, setAgentCards, setSubscription, settings, tab } from "./shared";
+import { cameras, relevantAgentCards, setAgentCards, setSubscription, settings, subscription, tab } from "./shared";
 
 const GAP_SIZE = '8px';
 
@@ -62,7 +62,7 @@ export default function ViewContent() {
 
             setSubscription({
                 session_id,
-                streams: medias.map(media => ({ id: media.media_id })),
+                streams: medias.map(media => ({ id: media.media_id, kind: 'media' as const })),
             });
         } else {
             setSubscription();
@@ -164,9 +164,10 @@ export default function ViewContent() {
                                                 {(media) => {
                                                     return <div style={{ width: `calc((100% - (${cols() - 1} * ${GAP_SIZE})) / ${cols()})`, height: '100%' }}>
                                                         <CanvasVideo
+                                                            subscription={subscription}
                                                             media_id={media.media_id}
                                                             showDetections={showDetections}
-                                                            camera_name={cameras().find(c => c.id === media.media_id)?.name}
+                                                            name={() => cameras().find(c => c.id === media.media_id)?.name}
                                                         />
                                                     </div>
                                                 }}

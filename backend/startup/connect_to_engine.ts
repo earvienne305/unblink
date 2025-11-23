@@ -115,7 +115,11 @@ export function connect_to_engine(props: {
                 const state = props.state();
 
                 // Moment detection handler
-                const onMoment = (moment: MomentData) => handleMoment(moment, state, engine_conn);
+                const onMoment = (moment: MomentData) => {
+                    // Get the moment ID from state (it was set when maybe moment started)
+                    const momentId = state.current_moment_ids.get(decoded.media_id) || null;
+                    handleMoment(moment, state, engine_conn, momentId);
+                };
 
                 // Calculate frame stats with moment detection
                 const frameStats = calculateFrameStats(
@@ -127,14 +131,19 @@ export function connect_to_engine(props: {
                     onMoment,
                     // onMaybeMomentStart
                     () => {
-                        logger.info(`Maybe moment started for ${decoded.media_id}`);
+                        // Generate moment ID upfront and store in state
+                        const newMomentId = crypto.randomUUID();
+                        state.current_moment_ids.set(decoded.media_id, newMomentId);
+
+                        logger.info(`Maybe moment started for ${decoded.media_id}, moment_id: ${newMomentId}`);
                         state.active_moments.add(decoded.media_id);
 
-                        // Forward to worker to start recording moment clip
+                        // Forward to worker to start recording moment clip with the moment ID
                         set_moment_state({
                             worker: props.worker_stream,
                             media_id: decoded.media_id,
                             should_write_moment: true,
+                            current_moment_id: newMomentId,
                         });
                     },
                     // onMaybeMomentEnd
@@ -150,6 +159,9 @@ export function connect_to_engine(props: {
                             should_write_moment: false,
                             delete_on_close: !isMoment, // Delete if it was NOT a real moment
                         });
+
+                        // Clear the moment ID from state after use
+                        state.current_moment_ids.delete(decoded.media_id);
                     }
                 );
 

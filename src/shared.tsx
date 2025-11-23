@@ -24,6 +24,9 @@ export type Tab = {
 } | {
     type: 'search_result';
     query: string;
+} | {
+    type: 'moment_playback';
+    moment_id: string;
 }
 
 export const [isAuthenticated, setIsAuthenticated] = createSignal(false);

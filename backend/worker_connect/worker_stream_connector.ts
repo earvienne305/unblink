@@ -1,4 +1,4 @@
-import type { ServerToWorkerStreamMessage, ServerToWorkerStreamMessage_Add_File, ServerToWorkerStreamMessage_Add_Stream } from "~/shared";
+import type { ServerToWorkerStreamMessage, ServerToWorkerStreamMessage_Add_Stream } from "~/shared";
 import { getAllMedia } from "../database/utils";
 import { logger } from "../logger";
 
@@ -14,7 +14,7 @@ export async function start_streams(opts: {
                 logger.info({ media }, `Starting stream:`);
                 start_stream({
                     worker: opts.worker_stream,
-                    media_id: media.id,
+                    id: media.id,
                     uri: media.uri,
                     saveDir: media.saveDir || '',
                 });
@@ -25,26 +25,25 @@ export async function start_streams(opts: {
     }
 }
 
-export function start_stream(opts: Omit<ServerToWorkerStreamMessage_Add_Stream, 'type'> & { worker: Worker, saveDir: string }) {
+export function start_stream(opts: Omit<ServerToWorkerStreamMessage_Add_Stream, 'type'> & { worker: Worker }) {
     const start_msg: ServerToWorkerStreamMessage = {
         type: 'start_stream',
-        media_id: opts.media_id,
+        id: opts.id,
         uri: opts.uri,
         saveDir: opts.saveDir,
+        should_record_moments: opts.should_record_moments,
     }
 
     opts.worker.postMessage(start_msg);
 }
 
-
-
 export function stop_stream(opts: {
     worker: Worker,
-    media_id: string,
+    id: string,
 }) {
     const stop_msg: ServerToWorkerStreamMessage = {
         type: 'stop_stream',
-        media_id: opts.media_id,
+        id: opts.id,
     }
 
     opts.worker.postMessage(stop_msg);

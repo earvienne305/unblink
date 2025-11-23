@@ -1,18 +1,56 @@
 import type { ServerWebSocket } from "bun";
 import { encode } from "cbor-x";
 import type { ServerToClientMessage, Subscription } from "~/shared";
+import { getMomentById } from "./database/utils";
+import { start_stream, stop_stream } from "./worker_connect/worker_stream_connector";
 
 export class WsClient {
     private _subscription: Subscription | null | undefined;
     private destroyed: boolean = false;
     constructor(
         public ws: ServerWebSocket,
+        public worker_stream: () => Worker,
     ) {
 
     }
 
-    updateSubscription(subscription: Subscription | null | undefined) {
+    async updateSubscription(subscription: Subscription | null | undefined) {
+        const old_subscription = this._subscription;
         this._subscription = subscription;
+
+        const ephemeral_subs = subscription?.streams.filter(s => s.type === 'ephemeral') || [];
+
+        const new_ephemeral_subs = ephemeral_subs.filter(s => !old_subscription?.streams.some(s2 => s2.id === s.id));
+        const old_ephemeral_subs = old_subscription?.streams.filter(s => s.type === 'ephemeral' && !subscription?.streams.some(s2 => s2.id === s.id)) || [];
+
+        // Close old ephemeral streams
+        for (const old_sub of old_ephemeral_subs) {
+            stop_stream({
+                worker: this.worker_stream(),
+                id: old_sub.id,
+            });
+        }
+
+        // Open new ephemeral streams
+        for (const new_sub of new_ephemeral_subs) {
+
+            if (new_sub.kind === 'moment') {
+                // Read database for this moment, the get clip_path
+                const moment = await getMomentById(new_sub.id);
+
+                // Check if we are still subscribed to this moment (race condition check)
+                const is_still_subscribed = this._subscription?.streams.some(s => s.id === new_sub.id);
+
+                if (is_still_subscribed && moment?.clip_path) {
+                    start_stream({
+                        worker: this.worker_stream(),
+                        id: new_sub.id,
+                        uri: moment.clip_path,
+                        should_record_moments: false,
+                    });
+                }
+            }
+        }
     }
 
     get subscription() {
@@ -20,6 +58,7 @@ export class WsClient {
     }
 
     destroy() {
+        this.updateSubscription(null);
         this.destroyed = true;
     }
 

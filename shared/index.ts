@@ -32,15 +32,25 @@ export type StreamMessage = {
 } | {
     type: 'frame';
     data: Uint8Array;
+} | {
+    type: 'moment_clip_saved';
+    media_id: string;
+    moment_id: string;
+    clip_path: string;
 }
-// | FrameMessage;
 
 
 export type Subscription = {
     session_id: string;
-    streams: {
+    streams: ({
+        type?: undefined
+        kind: 'media'
         id: string;
-    }[];
+    } | {
+        type: 'ephemeral',
+        kind: 'moment',
+        id: string
+    })[];
 }
 
 export type ClientToServerMessage = {
@@ -67,34 +77,30 @@ export type WorkerStreamToServerMessage = (StreamMessage & { media_id: string })
 } | {
     type: 'starting';
     media_id: string;
-} | {
-    type: 'moment_clip_saved';
-    media_id: string;
-    moment_id: string;
-    clip_path: string;
 }
 
 export type ServerToWorkerStreamMessage_Add_Stream = {
-    type: 'start_stream',
-    media_id: string,
-    uri: string,
-    saveDir: string,
+    type: 'start_stream';
+    id: string;
+    uri: string;
+    saveDir?: string;
+    should_record_moments?: boolean;
 }
-export type ServerToWorkerStreamMessage_Add_File = {
-    type: 'start_stream_file',
-    media_id: string,
-    file_path: string,
-}
-export type ServerToWorkerStreamMessage = ServerToWorkerStreamMessage_Add_Stream | ServerToWorkerStreamMessage_Add_File | {
+export type ServerToWorkerStreamMessage_Stop_Stream = {
     type: 'stop_stream',
-    media_id: string,
-} | {
+    id: string,
+}
+export type ServerToWorkerStreamMessage_Set_Moment_State = {
     type: 'set_moment_state',
     media_id: string,
     should_write_moment: boolean,
     current_moment_id?: string,
     delete_on_close?: boolean,
 }
+export type ServerToWorkerStreamMessage =
+    | ServerToWorkerStreamMessage_Add_Stream
+    | ServerToWorkerStreamMessage_Stop_Stream
+    | ServerToWorkerStreamMessage_Set_Moment_State;
 
 // export type ServerToWorkerObjectDetectionMessage = {
 //     media_id: string;
@@ -158,4 +164,5 @@ export type ServerEphemeralState = {
     }>;
     active_moments: Set<string>;
     moment_frames: Map<string, { id: string, at_time: number, data: Uint8Array }[]>;
+    current_moment_ids: Map<string, string>; // media_id -> moment_id for active moments
 };

@@ -11,12 +11,14 @@ import type { MomentData } from "./frame_stats";
 export async function handleMoment(
     moment: MomentData,
     state: ServerEphemeralState,
-    engine_conn: Conn<ServerRegistrationMessage | ServerToEngine, EngineToServer>
+    engine_conn: Conn<ServerRegistrationMessage | ServerToEngine, EngineToServer>,
+    momentId: string | null
 ) {
     const eventType = moment.type === 'instant' ? '⚡ Instant' : '🎯 Standard';
     logger.info({ moment }, `${eventType} moment detected!`);
 
-    const momentId = randomUUID();
+    // Use provided moment ID or generate new one (fallback for safety)
+    const finalMomentId = momentId || randomUUID();
 
     try {
         // Save thumbnail
@@ -29,7 +31,7 @@ export async function handleMoment(
             const thumbnailFrame = momentFrames[middleIndex];
 
             if (thumbnailFrame) {
-                const filename = `${momentId}.jpg`;
+                const filename = `${finalMomentId}.jpg`;
                 thumbnailPath = path.join(FRAMES_DIR, filename);
                 await Bun.write(thumbnailPath, thumbnailFrame.data);
                 logger.info({ thumbnailPath }, "Saved moment thumbnail");
@@ -37,7 +39,7 @@ export async function handleMoment(
         }
 
         await createMoment({
-            id: momentId,
+            id: finalMomentId,
             media_id: moment.media_id,
             start_time: moment.start_timestamp,
             end_time: moment.end_timestamp,
@@ -46,6 +48,7 @@ export async function handleMoment(
             title: null,
             short_description: null,
             long_description: null,
+            clip_path: null,
             thumbnail_path: thumbnailPath,
         });
         logger.info(`Saved moment to database for media ${moment.media_id}`);
@@ -56,7 +59,7 @@ export async function handleMoment(
             const msg: ServerToEngine = {
                 type: 'moment_enrichment',
                 media_id: moment.media_id,
-                moment_id: momentId,
+                moment_id: finalMomentId,
                 media_units: momentFrames.map(f => ({
                     id: f.id,
                     at_time: f.at_time,
@@ -70,7 +73,7 @@ export async function handleMoment(
             // Clear frames for this media
             state.moment_frames.delete(moment.media_id);
         } else {
-            logger.warn(`No frames buffered for moment ${momentId}, skipping enrichment`);
+            logger.warn(`No frames buffered for moment ${finalMomentId}, skipping enrichment`);
         }
 
     } catch (error) {

@@ -18,7 +18,10 @@ import { create_webhook_forward } from "./backend/webhook";
 import { spawn_worker } from "./backend/worker_connect/shared";
 import { start_stream, start_streams, stop_stream } from "./backend/worker_connect/worker_stream_connector";
 import homepage from "./index.html";
-import type { ClientToServerMessage, DbUser, RESTQuery, ServerEphemeralState } from "./shared";
+import type { ClientToServerMessage, DbUser, RESTQuery, ServerEphemeralState, Subscription } from "./shared";
+
+// ... (rest of imports)
+
 
 // Check args for "admin" mode
 if (process.argv[2] === "admin") {
@@ -45,7 +48,9 @@ const state: ServerEphemeralState = {
     stream_stats_map: new Map(),
     active_moments: new Set(),
     moment_frames: new Map(),
+    current_moment_ids: new Map(),
 }
+
 const handleMessage = createForwardFunction({
     clients,
     settings,
@@ -196,7 +201,7 @@ const server = Bun.serve({
                 // Start the media stream
                 start_stream({
                     worker: worker_stream,
-                    media_id: id,
+                    id,
                     uri: uri as string,
                     saveDir: saveDir as string,
                 });
@@ -383,7 +388,7 @@ const server = Bun.serve({
     websocket: {
         open(ws) {
             logger.info("WebSocket connection opened");
-            clients.set(ws, new WsClient(ws));
+            clients.set(ws, new WsClient(ws, () => worker_stream));
         },
         close(ws, code, reason) {
             logger.info(`WebSocket connection closed: ${code} - ${reason}`);
@@ -395,14 +400,12 @@ const server = Bun.serve({
             }
             clients.delete(ws);
         },
-        message(ws, message) {
+        async message(ws, message) {
             try {
                 const decoded = decode(message as Buffer) as ClientToServerMessage;
                 if (decoded.type === 'set_subscription') {
                     const client = clients.get(ws);
-                    if (client) {
-                        client.updateSubscription(decoded.subscription);
-                    }
+                    await client?.updateSubscription(decoded.subscription);
                 }
             } catch (error) {
                 logger.error(error, 'Error parsing websocket message');

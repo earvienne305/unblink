@@ -1,6 +1,6 @@
 import fs from "fs/promises";
 import type { WorkerState } from "~/backend/worker/worker_state";
-import type { AVPixelFormat, AVSampleFormat, Frame, Packet, Stream } from "node-av";
+import type { AVPixelFormat, AVSampleFormat, CodecContext, Frame, Packet, Stream } from "node-av";
 import {
     AV_CODEC_ID_AAC,
     AV_CODEC_ID_MJPEG,
@@ -154,7 +154,7 @@ type OutputFileObject = {
 };
 
 class OutputFile {
-    static async create(mediaId: string, output_id: string, videoEncoder: Encoder, output_type_dir: string): Promise<OutputFileObject> {
+    static async create(mediaId: string, output_id: string, codecContext: CodecContext, output_type_dir: string): Promise<OutputFileObject> {
         const from = new Date();
         const dir = path.join(output_type_dir, mediaId);
         await fs.mkdir(dir, { recursive: true });
@@ -165,14 +165,14 @@ class OutputFile {
         });
 
         // Manually add stream to bypass addStream's check on initialized encoders
-        const stream = mediaOutput.getFormatContext().newStream(null);
-        if (!stream) {
-            throw new Error("Failed to create output stream");
+        const ctx = mediaOutput.getFormatContext();
+        if (!ctx) {
+            throw new Error("Failed to get format context");
         }
 
-        const codecContext = videoEncoder.getCodecContext();
-        if (!codecContext) {
-            throw new Error("Encoder codec context not available");
+        const stream = ctx.newStream(null);
+        if (!stream) {
+            throw new Error("Failed to create output stream");
         }
 
         // Copy codec parameters
@@ -325,6 +325,8 @@ export async function streamMedia(
         },
     });
 
+    console.log("Video encoder created", videoEncoder);
+
     async function sendFrameMessage(packet: Packet) {
         if (!packet.data) return;
         const frame_msg: StreamMessage = {
@@ -360,6 +362,7 @@ export async function streamMedia(
                 await sendFrameMessage(packet);
                 // For skipTranscode, we still need to encode for object detection
                 using encodedPacket = await videoEncoder.encode(frameToUse);
+
                 if (encodedPacket?.data) {
                     // await saveFrameForObjectDetection(encodedPacket.data);
                     if (momentOutput) await writeToOutputFile(encodedPacket, momentOutput);
@@ -401,42 +404,40 @@ export async function streamMedia(
         const streamState = state$().streams.get(stream.id);
         if (streamState?.should_write_moment) {
             // Check if we need to create a new moment output (new moment started)
-            const currentMomentId = streamState.current_moment_id || 'unknown';
-            if (momentOutput === null || momentOutput.output_id !== currentMomentId) {
+
+            if (momentOutput === null || momentOutput.output_id !== streamState.current_moment_id) {
                 // Close previous moment output if exists
                 if (momentOutput) {
                     logger.info({ output_id: momentOutput.output_id }, "Closing previous moment output");
                     await OutputFile.close(momentOutput);
                 }
 
-                // Create new moment output with moment_id in path
-                const momentId: string = currentMomentId;
-
-                momentOutput = await OutputFile.create(stream.id, momentId, videoEncoder, stream.save_location || MOMENTS_DIR);
-                logger.info({ path: momentOutput.path, output_id: momentId }, "Created new moment output file");
+                if (streamState.current_moment_id) {
+                    const codecContext = videoEncoder.getCodecContext()
+                    if (codecContext) {
+                        momentOutput = await OutputFile.create(stream.id, streamState.current_moment_id, codecContext, stream.save_location || MOMENTS_DIR);
+                        logger.info({ path: momentOutput.path, output_id: streamState.current_moment_id }, "Created new moment output file");
+                    }
+                }
             }
         } else if (momentOutput !== null) {
             // should_write_moment is false - close the moment output
             const shouldDelete = streamState?.delete_on_close === true;
-            const outputId = momentOutput.output_id;
 
             if (shouldDelete) {
-                logger.info({ output_id: outputId }, "Moment was false alarm, closing and deleting output");
+                logger.info({ output_id: momentOutput.output_id }, "Moment was false alarm, closing and deleting output");
                 await OutputFile.discard(momentOutput);
             } else {
                 // Real moment - close, rename, and notify with final path
                 const finalPath = await OutputFile.close(momentOutput);
-                logger.info({ output_id: outputId, final_path: finalPath }, "Moment ended, closing and notifying with final path");
+                logger.info({ output_id: momentOutput.output_id, final_path: finalPath }, "Moment ended, closing and notifying with final path");
 
-                // Send message to server with the final clip path
-                if (outputId && outputId !== 'unknown') {
-                    onMessage({
-                        type: 'moment_clip_saved' as any,
-                        media_id: stream.id,
-                        moment_id: outputId,
-                        clip_path: finalPath,
-                    } as any);
-                }
+                onMessage({
+                    type: 'moment_clip_saved' as const,
+                    media_id: stream.id,
+                    moment_id: momentOutput.output_id,
+                    clip_path: finalPath,
+                });
             }
 
             momentOutput = null;
@@ -451,6 +452,7 @@ export async function streamMedia(
             }
 
             const now = Date.now();
+            // Limit frame rate to 30 FPS
             if (now - last_send_time < 1000 / 30) {
                 packet.free();
                 decodedFrame.free();
