@@ -55,7 +55,6 @@ export const createForwardFunction = (opts: ForwardingOpts) => {
             } catch (error) {
                 logger.error({ error, moment_id: decoded.moment_id }, 'Failed to update moment with clip path');
             }
-            return; // Don't forward this message to clients
         }
 
         if (decoded.type === 'codec' || decoded.type === 'frame') {
@@ -65,7 +64,7 @@ export const createForwardFunction = (opts: ForwardingOpts) => {
             }
         }
 
-
+        // logger.info({ decoded_is_ephemeral: decoded.is_ephemeral }, 'Forwarding message');
         if (decoded.type === 'frame' && !decoded.is_ephemeral) {
             const media_unit_id = randomUUID();
             const msg: ServerToEngine = {

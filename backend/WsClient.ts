@@ -25,8 +25,7 @@ export class WsClient {
 
         // Close old ephemeral streams
         for (const old_sub of old_ephemeral_subs) {
-            stop_stream({
-                worker: this.worker_stream(),
+            stop_stream(this.worker_stream(), {
                 id: old_sub.id,
             });
         }
@@ -42,8 +41,7 @@ export class WsClient {
                 const is_still_subscribed = this._subscription?.streams.some(s => s.id === new_sub.id);
 
                 if (is_still_subscribed && moment?.clip_path) {
-                    start_stream({
-                        worker: this.worker_stream(),
+                    start_stream(this.worker_stream(), {
                         id: new_sub.id,
                         uri: moment.clip_path,
                         should_record_moments: false,

@@ -139,8 +139,8 @@ export function connect_to_engine(props: {
                         state.active_moments.add(decoded.media_id);
 
                         // Forward to worker to start recording moment clip with the moment ID
-                        set_moment_state({
-                            worker: props.worker_stream,
+                        set_moment_state(props.worker_stream, {
+
                             media_id: decoded.media_id,
                             should_write_moment: true,
                             current_moment_id: newMomentId,
@@ -153,8 +153,7 @@ export function connect_to_engine(props: {
 
                         // Forward to worker to stop recording moment clip
                         // If it wasn't actually a moment, tell worker to delete the file
-                        set_moment_state({
-                            worker: props.worker_stream,
+                        set_moment_state(props.worker_stream, {
                             media_id: decoded.media_id,
                             should_write_moment: false,
                             discard_previous_maybe_moment: !isMoment, // Delete if it was NOT a real moment

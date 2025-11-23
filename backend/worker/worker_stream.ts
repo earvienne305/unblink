@@ -42,6 +42,7 @@ async function startStream(stream: StartStreamArg, signal: AbortSignal, passthro
             ...passthrough,
         }
 
+        // logger.info({ decoded_is_ephemeral: passthrough.is_ephemeral, passthrough }, 'Forwarding message here');
         sendMessage(worker_msg);
     }, signal, () => workerState);
 }
@@ -90,7 +91,7 @@ self.addEventListener("message", async (event) => {
         }
 
         const loop_id = msg.id;
-        logger.info(`Starting stream ${loop_id} with URI ${msg.uri}`);
+        // console.log({ msg: JSON.stringify(msg) }, `Starting stream`);
 
         if (msg.uri) {
             const abortController = new AbortController();

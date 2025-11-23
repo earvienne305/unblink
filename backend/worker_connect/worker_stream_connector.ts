@@ -12,8 +12,7 @@ export async function start_streams(opts: {
             await new Promise(resolve => setTimeout(resolve, 1000)); // stagger starts
             if (media.id && media.uri) {
                 logger.info({ media }, `Starting stream:`);
-                start_stream({
-                    worker: opts.worker_stream,
+                start_stream(opts.worker_stream, {
                     id: media.id,
                     uri: media.uri,
                     saveDir: media.saveDir || '',
@@ -25,20 +24,16 @@ export async function start_streams(opts: {
     }
 }
 
-export function start_stream(opts: Omit<ServerToWorkerStreamMessage_Add_Stream, 'type'> & { worker: Worker }) {
+export function start_stream(worker: Worker, opts: Omit<ServerToWorkerStreamMessage_Add_Stream, 'type'>) {
     const start_msg: ServerToWorkerStreamMessage = {
         type: 'start_stream',
-        id: opts.id,
-        uri: opts.uri,
-        saveDir: opts.saveDir,
-        should_record_moments: opts.should_record_moments,
+        ...opts,
     }
 
-    opts.worker.postMessage(start_msg);
+    worker.postMessage(start_msg);
 }
 
-export function stop_stream(opts: {
-    worker: Worker,
+export function stop_stream(worker: Worker, opts: {
     id: string,
 }) {
     const stop_msg: ServerToWorkerStreamMessage = {
@@ -46,11 +41,10 @@ export function stop_stream(opts: {
         id: opts.id,
     }
 
-    opts.worker.postMessage(stop_msg);
+    worker.postMessage(stop_msg);
 }
 
-export function set_moment_state(opts: {
-    worker: Worker,
+export function set_moment_state(worker: Worker, opts: {
     media_id: string,
     should_write_moment: boolean,
     current_moment_id?: string,
@@ -64,5 +58,5 @@ export function set_moment_state(opts: {
         discard_previous_maybe_moment: opts.discard_previous_maybe_moment,
     }
 
-    opts.worker.postMessage(msg);
+    worker.postMessage(msg);
 }

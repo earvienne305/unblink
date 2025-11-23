@@ -98,8 +98,7 @@ export default function MomentPlaybackContent() {
                                     }
                                 >
                                     <CanvasVideo
-                                        media_id={momentId}
-                                        subscription={subscription}
+                                        id={momentId}
                                         showDetections={showDetections}
                                         name={cameraName}
                                     />

@@ -199,8 +199,7 @@ const server = Bun.serve({
 
                 logger.info(`New media added via API: ${name} (${id})`);
                 // Start the media stream
-                start_stream({
-                    worker: worker_stream,
+                start_stream(worker_stream, {
                     id,
                     uri: uri as string,
                     saveDir: saveDir as string,
