@@ -24,7 +24,7 @@ export const create_builders: (
 ) => { [builder_id: string]: Builder } = (opts) => {
     return {
         'indexing': {
-            worker_types: ['caption', 'embedding'],
+            worker_types: ['vlm', 'embedding'],
             interval: 3000,
             should_run({ in_moment, last_time_run }) {
                 if (in_moment) return true;
@@ -53,7 +53,7 @@ export const create_builders: (
             mk_cont({ worker_type, media_id, media_unit_id }) {
                 return async (output: any) => {
                     if (
-                        worker_type == 'caption'
+                        worker_type == 'vlm'
                     ) {
                         let description = output.response;
 
@@ -111,6 +111,11 @@ export const create_builders: (
                             media_id: mu.media_id,
                             description,
                         });
+
+                        // Update media unit in database
+                        updateMediaUnit(media_unit_id, {
+                            description,
+                        })
                     }
 
                     if (
@@ -168,7 +173,7 @@ export const create_builders: (
                     const onMoment = (moment: MomentData) => {
                         // Get the moment ID from state (it was set when maybe moment started)
                         const momentId = state.current_moment_ids.get(media_id) || null;
-                        handleMoment(moment, state, momentId);
+                        handleMoment(moment, state, momentId, opts.send_to_engine);
                     };
 
                     // Calculate frame stats with moment detection

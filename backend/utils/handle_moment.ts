@@ -1,17 +1,18 @@
 import { randomUUID } from "crypto";
 import path from "path";
-import type { ServerEphemeralState } from "~/shared";
-import type { Conn } from "~/shared/Conn";
-import type { EngineToServer, RemoteJob, ServerRegistrationMessage, WorkerRequest } from "~/shared/engine";
+import type { InMemWorkerRequest, ServerEphemeralState } from "~/shared";
 import { FRAMES_DIR } from "../appdir";
-import { createMoment } from "../database/utils";
+import { createMoment, updateMoment } from "../database/utils";
 import { logger } from "../logger";
 import type { MomentData } from "./frame_stats";
+import type { Resource } from "~/shared/engine";
+import { parseJsonFromString } from "./dirty_json";
 
 export async function handleMoment(
     moment: MomentData,
     state: ServerEphemeralState,
-    momentId: string | null
+    momentId: string | null,
+    send_to_engine: (msg: InMemWorkerRequest) => void
 ) {
     const eventType = moment.type === 'instant' ? '⚡ Instant' : '🎯 Standard';
     logger.info({ moment }, `${eventType} moment detected!`);
@@ -51,35 +52,71 @@ export async function handleMoment(
         });
         logger.info(`Saved moment to database for media ${moment.media_id}`);
 
-        // // Trigger summarization
-        // // momentFrames is already defined above
-        // if (momentFrames.length > 0) {
-        //     const msg: WorkerRequest = {
-        //         type: 'worker_request',
-        //         worker_id: 'caption',
-        //         identifier: {
-        //             media_id: moment.media_id,
-        //             moment_id: finalMomentId,
-        //         },
-        //         resources: momentFrames.map(f => ({
-        //             data: f.data,
-        //             type: 'image'
-        //         })),
-        //         query: `Describe specific details of main subjects.
-        //         Ignore generic scenery. 
-        //         Do not use phrases like 'The image shows', rather start directly with the subject. 
-        //         Output a valid JSON object with keys: title (5 words), description (1 sentence or 2 sentences). 
-        //         Example: {\"title\": \"...\", \"description\": \"...\"}`
-        //     };
+        // Trigger summarization
+        // momentFrames is already defined above
+        if (momentFrames.length > 0) {
+            const image_resources: Resource[] = momentFrames.map(f => ({
+                id: f.id,
+                data: f.data,
+                type: 'image'
+            }))
 
-        //     engine_conn.send(msg);
-        //     logger.info(`Sent moment enrichment request for ${moment.media_id} with ${momentFrames.length} frames`);
+            const query = `Describe specific details of main subjects.
+                Ignore generic scenery. 
+                Do not use phrases like 'The image shows', rather start directly with the subject. 
+                Output a valid JSON object with keys: title (5 words), description (1 sentence or 2 sentences). 
+                Example: {\"title\": \"...\", \"description\": \"...\"}`
 
-        //     // Clear frames for this media
-        //     state.moment_frames.delete(moment.media_id);
-        // } else {
-        //     logger.warn(`No frames buffered for moment ${finalMomentId}, skipping enrichment`);
-        // }
+            const text_resource: Resource = {
+                id: crypto.randomUUID(),
+                type: 'text',
+                content: query,
+            }
+
+            const resources = [...image_resources, text_resource];
+
+
+            const msg: InMemWorkerRequest = {
+                type: 'worker_request',
+                resources,
+                jobs: [
+                    {
+                        worker_type: 'caption',
+                        resources: resources.map(r => ({ id: r.id })),
+                        cont(output) {
+                            console.log('summarize moment', output);
+                            // summarize moment {
+                            //   id: "bb4e228f-9d8c-4107-ba4b-bec110dc3577",
+                            //   response: "{\n  \"title\": \"White van and metal structure\",\n  \"description\": \"A white van is parked near a tall metal structure.\"\n}",
+                            // }
+                            const parsed = parseJsonFromString(output.response);
+                            if (parsed.error) {
+                                logger.error({ error: parsed.error, response: output.response }, "Failed to parse caption response");
+                                return;
+                            }
+
+                            const title = parsed.data.title;
+                            const description = parsed.data.description;
+
+                            updateMoment(finalMomentId, {
+                                title,
+                                description,
+                            })
+                        }
+                    }
+                ],
+
+
+            };
+
+            send_to_engine(msg);
+            logger.info(`Sent moment enrichment request for ${moment.media_id} with ${momentFrames.length} frames`);
+
+            // Clear frames for this media
+            state.moment_frames.delete(moment.media_id);
+        } else {
+            logger.warn(`No frames buffered for moment ${finalMomentId}, skipping enrichment`);
+        }
 
     } catch (error) {
         logger.error({ error, moment }, "Failed to save moment to database");

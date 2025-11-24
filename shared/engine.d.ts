@@ -6,20 +6,27 @@ export type ServerRegistrationMessage = {
 
 export type RemoteJob = {
     job_id: string,
-    worker_type: 'caption' | 'embedding' | 'object_detection' | 'motion_energy',
+    worker_type: 'caption' | 'embedding' | 'object_detection' | 'motion_energy' | 'vlm',
     cross_job_id?: string,
     resources?: {
         id: string,
     }[]
 }
 
+export type Resource = ({
+    type: 'image',
+    data: Uint8Array,
+} | {
+    type: 'text',
+    kind?: string,
+    content: string
+}) & {
+    id: string,
+}
+
 export type WorkerRequest = {
     type: "worker_request",
-    resources?: {
-        id: string,
-        type: 'image',
-        data: Uint8Array,
-    }[],
+    resources?: Resource[],
     jobs: RemoteJob[]
 }
 

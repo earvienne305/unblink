@@ -309,18 +309,6 @@ export default function CanvasVideo(props: { id: string, showDetections: Accesso
         if (!message) return;
         const isCorrectStreamMessage = (message.type == 'frame' || message.type == 'codec') && message.id === props.id && message.session_id === ses_id;
         const isCorrectEngineMessage = message.type == 'object_detection' && message.media_id === props.id && message.session_id === ses_id;
-        // if (message.type === 'frame_object_detection') {
-        //     console.log('CanvasVideo received obj message:', message);
-        // }
-
-        if (message.type === 'frame') {
-            console.log('CanvasVideo received frame message:', {
-                message,
-                isCorrectStreamMessage,
-                ses_id,
-                props_id: props.id
-            });
-        }
 
         if (isCorrectStreamMessage || isCorrectEngineMessage) {
             player?.handleMessage(message);

@@ -156,3 +156,86 @@ test("getByQuery - Order by with select fields", async () => {
         expect(results[i]!.at_time).toBeLessThanOrEqual(results[i + 1]!.at_time);
     }
 });
+
+test("getByQuery - is_not NULL (filter for non-null descriptions)", async () => {
+    // First, create a media unit without a description
+    const noDescId = crypto.randomUUID();
+    await createMediaUnit({
+        id: noDescId,
+        media_id: testMediaId,
+        at_time: Date.now(),
+        description: null,
+        path: '/tmp/query_test_no_desc.jpg',
+        type: 'image'
+    } as MediaUnit);
+    createdMediaUnitIds.push(noDescId);
+
+    // Query for items with non-null descriptions
+    const results = await getByQuery({
+        table: 'media_units',
+        where: [
+            { field: 'media_id', op: 'equals', value: testMediaId },
+            { field: 'description', op: 'is_not', value: null }
+        ]
+    });
+
+    // Should return all 60 original items (with descriptions) but not the new one without description
+    expect(results.length).toBe(50); // Default limit is 50
+    // Verify all returned items have descriptions
+    for (const item of results) {
+        expect(item.description).not.toBeNull();
+        expect(item.description).toBeDefined();
+    }
+});
+
+test("getByQuery - in operation (multiple media_ids)", async () => {
+    // Create another test media
+    const testMediaId2 = crypto.randomUUID();
+    await createMedia({
+        id: testMediaId2,
+        name: 'Query Test Media 2',
+        uri: 'dummy://query-test-2',
+        labels: ['query-test-2'],
+        updated_at: Date.now(),
+        save_to_disk: 0,
+        save_location: null
+    });
+
+    // Create a few media units for the second media
+    const mediaUnit2Ids: string[] = [];
+    for (let i = 0; i < 5; i++) {
+        const id = crypto.randomUUID();
+        mediaUnit2Ids.push(id);
+        createdMediaUnitIds.push(id);
+        await createMediaUnit({
+            id,
+            media_id: testMediaId2,
+            at_time: Date.now() + i,
+            description: `Media 2 Item ${i}`,
+            path: `/tmp/query_test_media2_${i}.jpg`,
+            type: 'image'
+        } as MediaUnit);
+    }
+
+    // Query for items from both media sources
+    const results = await getByQuery({
+        table: 'media_units',
+        where: [
+            { field: 'media_id', op: 'in', value: [testMediaId, testMediaId2] },
+            { field: 'description', op: 'is_not', value: null }
+        ],
+        limit: 100
+    });
+
+    // Should return items from both media sources (60 + 5 = 65, but we might have one without description from previous test)
+    expect(results.length).toBeGreaterThanOrEqual(64);
+
+    // Verify all items belong to one of the two media IDs
+    for (const item of results) {
+        expect([testMediaId, testMediaId2]).toContain(item.media_id);
+    }
+
+    // Cleanup
+    await deleteMedia(testMediaId2);
+});
+
