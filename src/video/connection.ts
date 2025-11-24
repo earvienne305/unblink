@@ -18,14 +18,6 @@ export const connectWebSocket = () => {
         onClose: () => console.log("WebSocket connection closed"),
         onError: (e) => console.error("WebSocket connection error:", e),
         onMessage(decoded) {
-            const sub = untrack(subscription);
-            const session_id = sub?.session_id;
-            // Note: works even if session_id is undefined (and message session_id is also undefined)
-            if (decoded.session_id !== session_id) {
-                console.warn(`Received message for session_id ${decoded.session_id}, but current session_id is ${session_id}. Ignoring message.`, decoded);
-                return;
-            }
-            // console.log("WebSocket message received", decoded);
             setNewMessage(decoded);
         }
     });

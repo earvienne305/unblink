@@ -32,6 +32,7 @@ export type StreamMessage = {
 } | {
     type: 'frame';
     data: Uint8Array;
+    timestamp?: number;
 } | {
     type: 'moment_clip_saved';
     media_id: string;
@@ -43,15 +44,17 @@ export type StreamMessage = {
 
 
 export type Subscription = {
-    session_id: string;
-    streams: ({
+    streams: (({
         type?: undefined
         kind: 'media'
         id: string;
     } | {
         type: 'ephemeral',
         kind: 'moment',
-        id: string
+        id: string,
+        init_seek_sec?: number
+    }) & {
+        session_id: string;
     })[];
 }
 
@@ -82,7 +85,7 @@ export type ServerToWorkerStreamMessage_Add_Stream = {
     type: 'start_stream';
     uri: string;
     saveDir?: string;
-    should_record_moments?: boolean;
+    init_seek_sec?: number;
 } & PassThroughOpts
 
 export type ServerToWorkerStreamMessage_Stop_Stream = {
@@ -92,7 +95,7 @@ export type ServerToWorkerStreamMessage_Stop_Stream = {
 export type ServerToWorkerStreamMessage_Set_Moment_State = {
     type: 'set_moment_state',
     media_id: string,
-    should_write_moment: boolean,
+    should_write_moment?: boolean,
     current_moment_id?: string,
     discard_previous_maybe_moment?: boolean,
 }

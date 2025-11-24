@@ -221,20 +221,21 @@ export type StartStreamArg = {
     id: string;
     uri: string;
     save_location?: string;
-    is_ephemeral?: boolean; // True for moment playback, false for live streams
+    is_ephemeral?: boolean; // True for moment playback, false for live streams,
+    init_seek_sec?: number;
 }
 
 export async function streamMedia(
-    stream: StartStreamArg,
+    startArg: StartStreamArg,
     onMessage: (msg: StreamMessage) => void,
     signal: AbortSignal,
     state$: () => WorkerState
 ) {
-    logger.info({ uri: stream.uri }, 'Starting streamMedia for');
+    logger.info({ uri: startArg.uri }, 'Starting streamMedia for');
 
-    logger.info(`Opening media input: ${stream.uri}`);
-    await using input = await MediaInput.open(stream.uri, {
-        options: stream.uri.toLowerCase().startsWith("rtsp://")
+    logger.info(`Opening media input: ${startArg.uri}`);
+    await using input = await MediaInput.open(startArg.uri, {
+        options: startArg.uri.toLowerCase().startsWith("rtsp://")
             ? { rtsp_transport: "tcp" }
             : undefined,
     });
@@ -330,11 +331,12 @@ export async function streamMedia(
         },
     });
 
-    async function sendFrameMessage(packet: Packet) {
+    async function sendFrameMessage(packet: Packet, timestamp?: number) {
         if (!packet.data) return;
         const frame_msg: StreamMessage = {
             type: "frame",
             data: packet.data,
+            timestamp
         };
         onMessage(frame_msg);
     }
@@ -360,7 +362,7 @@ export async function streamMedia(
         }
     }
 
-    async function processPacket(packet: Packet, decodedFrame: Frame) {
+    async function processPacket(packet: Packet, decodedFrame: Frame, timestamp?: number) {
         let filteredFrame: Frame | null = null;
 
         try {
@@ -374,7 +376,7 @@ export async function streamMedia(
 
             // Send frame for streaming
             if (skipTranscode) {
-                await sendFrameMessage(packet);
+                await sendFrameMessage(packet, timestamp);
                 // For skipTranscode, we still need to encode for object detection
                 using encodedPacket = await videoEncoder.encode(frameToUse);
 
@@ -386,7 +388,7 @@ export async function streamMedia(
                 // Encode once and reuse for both streaming and object detection
                 using encodedPacket = await videoEncoder.encode(frameToUse);
                 if (encodedPacket?.data) {
-                    await sendFrameMessage(encodedPacket);
+                    await sendFrameMessage(encodedPacket, timestamp);
                     // await saveFrameForObjectDetection(encodedPacket.data);
                     // Write same packet to moment output if it exists
                     if (momentOutput) await writeToOutputFile(encodedPacket, momentOutput);
@@ -398,8 +400,13 @@ export async function streamMedia(
         }
     }
 
+    if (startArg.init_seek_sec) {
+        input.seekSync(startArg.init_seek_sec);
+    }
     const packets = input.packets();
     let last_send_time = 0;
+    let firstPacketPts: bigint | null = null;
+    let playbackStartTime = 0;
 
     logger.info("Entering main streaming loop");
 
@@ -415,47 +422,49 @@ export async function streamMedia(
 
         const packet = res.value;
 
-        // Handle moment-specific output
-        const streamState = state$().streams.get(stream.id);
-        if (streamState?.should_write_moment) {
-            // Check if we need to create a new moment output (new moment started)
+        if (!startArg.is_ephemeral) {
+            // Handle moment-specific output
+            const streamState = state$().streams.get(startArg.id);
+            if (streamState?.should_write_moment) {
+                // Check if we need to create a new moment output (new moment started)
 
-            if (momentOutput === null || momentOutput.output_id !== streamState.current_moment_id) {
-                // Close previous moment output if exists
-                if (momentOutput) {
-                    logger.info({ output_id: momentOutput.output_id }, "Closing previous moment output");
-                    await OutputFile.close(momentOutput);
-                }
+                if (momentOutput === null || momentOutput.output_id !== streamState.current_moment_id) {
+                    // Close previous moment output if exists
+                    if (momentOutput) {
+                        logger.info({ output_id: momentOutput.output_id }, "Closing previous moment output");
+                        await OutputFile.close(momentOutput);
+                    }
 
-                if (streamState.current_moment_id) {
-                    const codecContext = videoEncoder.getCodecContext()
-                    if (codecContext) {
-                        momentOutput = await OutputFile.create(stream.id, streamState.current_moment_id, codecContext, stream.save_location || MOMENTS_DIR);
-                        logger.info({ path: momentOutput.path, output_id: streamState.current_moment_id }, "Created new moment output file");
+                    if (streamState.current_moment_id) {
+                        const codecContext = videoEncoder.getCodecContext()
+                        if (codecContext) {
+                            momentOutput = await OutputFile.create(startArg.id, streamState.current_moment_id, codecContext, startArg.save_location || MOMENTS_DIR);
+                            logger.info({ path: momentOutput.path, output_id: streamState.current_moment_id }, "Created new moment output file");
+                        }
                     }
                 }
+            } else if (momentOutput !== null) {
+                // should_write_moment is false - close the moment output
+                const shouldDelete = streamState?.discard_previous_maybe_moment === true;
+
+                if (shouldDelete) {
+                    logger.info({ output_id: momentOutput.output_id }, "Moment was false alarm, closing and deleting output");
+                    await OutputFile.discard(momentOutput);
+                } else {
+                    // Real moment - close, rename, and notify with final path
+                    const finalPath = await OutputFile.close(momentOutput);
+                    logger.info({ output_id: momentOutput.output_id, final_path: finalPath }, "Moment ended, closing and notifying with final path");
+
+                    onMessage({
+                        type: 'moment_clip_saved' as const,
+                        media_id: startArg.id,
+                        moment_id: momentOutput.output_id,
+                        clip_path: finalPath,
+                    });
+                }
+
+                momentOutput = null;
             }
-        } else if (momentOutput !== null) {
-            // should_write_moment is false - close the moment output
-            const shouldDelete = streamState?.discard_previous_maybe_moment === true;
-
-            if (shouldDelete) {
-                logger.info({ output_id: momentOutput.output_id }, "Moment was false alarm, closing and deleting output");
-                await OutputFile.discard(momentOutput);
-            } else {
-                // Real moment - close, rename, and notify with final path
-                const finalPath = await OutputFile.close(momentOutput);
-                logger.info({ output_id: momentOutput.output_id, final_path: finalPath }, "Moment ended, closing and notifying with final path");
-
-                onMessage({
-                    type: 'moment_clip_saved' as const,
-                    media_id: stream.id,
-                    moment_id: momentOutput.output_id,
-                    clip_path: finalPath,
-                });
-            }
-
-            momentOutput = null;
         }
 
         if (packet.streamIndex === videoStream.index) {
@@ -467,24 +476,16 @@ export async function streamMedia(
             }
 
             // Handle frame timing
-            if (stream.is_ephemeral) {
+            if (startArg.is_ephemeral) {
                 // For ephemeral streams (moment playback), respect original timing from file
-                // Track start time and first PTS to calculate proper delays
                 if (last_send_time === 0) {
                     last_send_time = Date.now();
-                    // Store first packet PTS
-                    if (!('firstPacketPts' in stream)) {
-                        (stream as any).firstPacketPts = packet.pts;
-                        (stream as any).playbackStartTime = last_send_time;
-                    }
+                    firstPacketPts = packet.pts;
+                    playbackStartTime = last_send_time;
                 }
 
                 // Calculate when this frame should be sent based on packet timestamp
-                const firstPts = (stream as any).firstPacketPts || 0n;
-                const playbackStartTime = (stream as any).playbackStartTime || last_send_time;
-
-                // Convert PTS to milliseconds
-                const elapsedFileTime = Number((packet.pts - firstPts) * BigInt(videoStream.timeBase.num * 1000) / BigInt(videoStream.timeBase.den));
+                const elapsedFileTime = Number((packet.pts - (firstPacketPts || 0n)) * BigInt(videoStream.timeBase.num * 1000) / BigInt(videoStream.timeBase.den));
                 const targetTime = playbackStartTime + elapsedFileTime;
                 const now = Date.now();
                 const delay = targetTime - now;
@@ -505,7 +506,14 @@ export async function streamMedia(
             }
 
             try {
-                await processPacket(packet, decodedFrame);
+                let timestamp: number | undefined;
+                if (startArg.is_ephemeral) {
+                    const elapsedFileTime = Number((packet.pts - (firstPacketPts || 0n)) * BigInt(videoStream.timeBase.num * 1000) / BigInt(videoStream.timeBase.den));
+                    // Calculate seek offset on the fly and add to elapsed time
+                    timestamp = (startArg.init_seek_sec || 0) * 1000 + elapsedFileTime;
+                }
+
+                await processPacket(packet, decodedFrame, timestamp);
             } catch (error) {
                 logger.error({ error: (error as Error).message }, "Error processing packet");
             } finally {

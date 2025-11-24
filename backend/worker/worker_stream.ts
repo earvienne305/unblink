@@ -33,10 +33,13 @@ function sendMessage(msg: WorkerStreamToServerMessage) {
     self.postMessage(worker_msg, [worker_msg.buffer]);
 }
 
-async function startStream(stream: StartStreamArg, signal: AbortSignal, passthrough: PassThroughOpts) {
-    logger.info(`Starting media stream for ${stream.id}`);
+async function startStream(startArg: StartStreamArg, signal: AbortSignal, passthrough: PassThroughOpts) {
+    logger.info(`Starting media stream for ${startArg.id}`);
 
-    await streamMedia(stream, (msg) => {
+    await streamMedia({
+        ...startArg,
+        // init_seek_sec: 6
+    }, (msg) => {
         const worker_msg: WorkerStreamToServerMessage = {
             ...msg,
             ...passthrough,
@@ -47,7 +50,7 @@ async function startStream(stream: StartStreamArg, signal: AbortSignal, passthro
     }, signal, () => workerState);
 }
 
-async function startFaultTolerantStream(stream: StartStreamArg, signal: AbortSignal, passthrough: PassThroughOpts) {
+async function startFaultTolerantStream(startArg: StartStreamArg, signal: AbortSignal, passthrough: PassThroughOpts) {
     const state = {
         hearts: 5,
     }
@@ -55,24 +58,26 @@ async function startFaultTolerantStream(stream: StartStreamArg, signal: AbortSig
     while (true) {
         try {
             recovery_timeout = setTimeout(() => {
-                logger.info(`Stream ${stream.id} has been stable for 30 seconds, full recovery.`);
+                logger.info(`Stream ${startArg.id} has been stable for 30 seconds, full recovery.`);
                 state.hearts = 5;
             }, 30000);
-            await startStream(stream, signal, passthrough);
+            await startStream(startArg, signal, passthrough);
             logger.info('Stream ended gracefully, stopping.')
             break;
         } catch (e) {
             if (recovery_timeout) clearTimeout(recovery_timeout);
             state.hearts -= 1;
             if (state.hearts <= 0) {
-                logger.error(e, `Stream for ${stream.id} has failed too many times, giving up.`);
+                logger.error(e, `Stream for ${startArg.id} has failed too many times, giving up.`);
                 return;
             }
-            logger.error(e, `Error in streaming loop for ${stream.id}, restarting (${state.hearts} hearts remaining)...`);
+
             if (signal.aborted) {
-                logger.info(`Abort signal received, stopping stream for ${stream.id}`);
+                logger.info(`Abort signal received, stopping stream for ${startArg.id}`);
                 return;
             }
+
+            logger.error(e, `Error in streaming loop for ${startArg.id}, restarting (${state.hearts} hearts remaining)...`);
             await new Promise((resolve) => setTimeout(resolve, 5000));
         }
     }
@@ -95,12 +100,6 @@ self.addEventListener("message", async (event) => {
 
         if (msg.uri) {
             const abortController = new AbortController();
-
-            // Initialize state for this stream in global workerState
-            workerState.streams.set(loop_id, {
-                should_write_moment: msg.should_record_moments ?? true, // Default to true for backward compatibility
-            });
-
             loops[loop_id] = {
                 controller: abortController,
             };
@@ -109,6 +108,7 @@ self.addEventListener("message", async (event) => {
                 id: loop_id,
                 uri: msg.uri,
                 save_location: msg.saveDir,
+                init_seek_sec: msg.init_seek_sec,
                 is_ephemeral: msg.is_ephemeral,
             }, abortController.signal, passthrough);
         }

@@ -46,7 +46,7 @@ export function stop_stream(worker: Worker, opts: {
 
 export function set_moment_state(worker: Worker, opts: {
     media_id: string,
-    should_write_moment: boolean,
+    should_write_moment?: boolean,
     current_moment_id?: string,
     discard_previous_maybe_moment?: boolean,
 }) {

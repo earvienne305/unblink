@@ -3,6 +3,7 @@ import { encode } from "cbor-x";
 import type { ServerToClientMessage, Subscription } from "~/shared";
 import { getMomentById } from "./database/utils";
 import { start_stream, stop_stream } from "./worker_connect/worker_stream_connector";
+import { logger } from "./logger";
 
 export class WsClient {
     private _subscription: Subscription | null | undefined;
@@ -20,8 +21,14 @@ export class WsClient {
 
         const ephemeral_subs = subscription?.streams.filter(s => s.type === 'ephemeral') || [];
 
-        const new_ephemeral_subs = ephemeral_subs.filter(s => !old_subscription?.streams.some(s2 => s2.id === s.id));
-        const old_ephemeral_subs = old_subscription?.streams.filter(s => s.type === 'ephemeral' && !subscription?.streams.some(s2 => s2.id === s.id)) || [];
+        // We are comparing by session_id
+        const new_ephemeral_subs = ephemeral_subs.filter(s => !old_subscription?.streams.some(s2 => s2.session_id === s.session_id));
+        const old_ephemeral_subs = old_subscription?.streams.filter(s => s.type === 'ephemeral' && !subscription?.streams.some(s2 => s2.session_id === s.session_id)) || [];
+
+        // logger.info({
+        //     new_ephemeral_subs,
+        //     old_ephemeral_subs,
+        // }, "Updating subscription");
 
         // Close old ephemeral streams
         for (const old_sub of old_ephemeral_subs) {
@@ -44,8 +51,8 @@ export class WsClient {
                     start_stream(this.worker_stream(), {
                         id: new_sub.id,
                         uri: moment.clip_path,
-                        should_record_moments: false,
                         is_ephemeral: true,
+                        init_seek_sec: new_sub.init_seek_sec,
                     });
                 }
             }
@@ -63,32 +70,30 @@ export class WsClient {
 
     send(
         msg: ServerToClientMessage,
-        filterBySubscription: boolean = true,
-
+        enforce_session_id: boolean = true,
     ) {
+
         if (this.destroyed) return;
-        if (filterBySubscription) {
-            if (!this._subscription) return;
 
-            // Check matches subscription before sending
-
-            if (msg.type === 'codec' || msg.type === 'frame') {
-                const is_subscribed = this._subscription.streams.some(s => {
-                    return s.id === msg.id;
-                });
-                if (!is_subscribed) {
-                    // Not subscribed to this stream
-                    return;
-                }
-            }
+        // .send() usage is oblivious to session_id, only id is used to match subscription
+        // BUG: this does introduce a bug where where messages of old resources (e.g. moment with id=0 and param seek=0) is sent 
+        // to new subscription (moment with id=0 and param seek=10).
+        // Currently rely on the fact that old streams are killed off fast enough that they don't interefer with the new ones
+        // TODO: pass session_id to workers start stream args
+        let session_id = undefined;
+        if (msg.type === 'codec' || msg.type === 'frame') {
+            // BUG here (above)
+            const stream_sub = this._subscription?.streams.find(s => s.id === msg.id);
+            session_id = stream_sub?.session_id;
         }
 
+        if (enforce_session_id && session_id === undefined) return;
+
         const send = {
-            session_id: this._subscription?.session_id,
+            session_id,
             ...msg,
         }
         const encoded = encode(send)
-
         this.ws.send(encoded);
     }
 }

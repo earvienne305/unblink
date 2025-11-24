@@ -140,7 +140,6 @@ export function connect_to_engine(props: {
 
                         // Forward to worker to start recording moment clip with the moment ID
                         set_moment_state(props.worker_stream, {
-
                             media_id: decoded.media_id,
                             should_write_moment: true,
                             current_moment_id: newMomentId,

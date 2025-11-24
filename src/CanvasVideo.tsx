@@ -19,16 +19,19 @@ class MjpegPlayer {
     public _showDetections = true;
     public cameraName: string | undefined;
     public rounded: boolean;
+    private onTimestamp?: (timestamp: number) => void;
 
     constructor(
         canvas: HTMLCanvasElement,
         onDrawingStateChange: (isDrawing: boolean) => void,
-        rounded: boolean = false
+        rounded: boolean = false,
+        onTimestamp?: (timestamp: number) => void
     ) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d')!;
         this.onDrawingStateChange = onDrawingStateChange;
         this.rounded = rounded;
+        this.onTimestamp = onTimestamp;
         this.startRenderLoop();
     }
 
@@ -63,6 +66,10 @@ class MjpegPlayer {
                 this.onDrawingStateChange(true);
             };
             img.src = url;
+
+            if (message.timestamp !== undefined && this.onTimestamp) {
+                this.onTimestamp(message.timestamp);
+            }
         }
     }
 
@@ -258,7 +265,7 @@ class MjpegPlayer {
     }
 }
 
-export default function CanvasVideo(props: { id: string, showDetections: Accessor<boolean>, name: Accessor<string | undefined>, rounded?: boolean }) {
+export default function CanvasVideo(props: { id: string, showDetections: Accessor<boolean>, name?: Accessor<string | undefined>, rounded?: boolean, onTimestamp?: (timestamp: number) => void }) {
     const [canvasRef, setCanvasRef] = createSignal<HTMLCanvasElement>();
     const [containerRef, setContainerRef] = createSignal<HTMLDivElement>();
     const [isDrawing, setIsDrawing] = createSignal(false);
@@ -272,7 +279,7 @@ export default function CanvasVideo(props: { id: string, showDetections: Accesso
     });
 
     createEffect(() => {
-        const name = props.name();
+        const name = props.name?.();
         if (player && name) {
             player.setCameraName(name);
         }
@@ -281,8 +288,8 @@ export default function CanvasVideo(props: { id: string, showDetections: Accesso
     createEffect(() => {
         const canvas = canvasRef();
         if (canvas && !player) {
-            player = new MjpegPlayer(canvas, setIsDrawing, props.rounded ?? false);
-            const name = props.name();
+            player = new MjpegPlayer(canvas, setIsDrawing, props.rounded ?? false, props.onTimestamp);
+            const name = props.name?.();
             if (name) {
                 player.setCameraName(name);
             }
@@ -295,8 +302,11 @@ export default function CanvasVideo(props: { id: string, showDetections: Accesso
         const s = subscription();
         if (!s) return;
 
-        const isCorrectStreamMessage = (message.type == 'frame' || message.type == 'codec') && message.id === props.id && message.session_id == s.session_id;
-        const isCorrectEngineMessage = message.type == 'frame_object_detection' && message.media_id === props.id && message.session_id == s.session_id;
+        const stream_sub = s.streams.find(stream => stream.id === props.id);
+        if (!stream_sub) return;
+
+        const isCorrectStreamMessage = (message.type == 'frame' || message.type == 'codec') && message.id === props.id && message.session_id == stream_sub.session_id;
+        const isCorrectEngineMessage = message.type == 'frame_object_detection' && message.media_id === props.id && message.session_id == stream_sub.session_id;
         // if (message.type === 'frame_object_detection' && isCorrectEngineMessage) {
         //     console.log('CanvasVideo received message:', message);
         // }

@@ -58,11 +58,12 @@ export default function ViewContent() {
         const medias = viewedMedias();
         if (medias && medias.length > 0) {
             console.log('Subscribing to streams:', medias);
-            const session_id = uuid();
 
             setSubscription({
-                session_id,
-                streams: medias.map(media => ({ id: media.media_id, kind: 'media' as const })),
+                streams: medias.map(media => {
+                    const session_id = uuid();
+                    return { session_id, id: media.media_id, kind: 'media' as const }
+                }),
             });
         } else {
             setSubscription();
