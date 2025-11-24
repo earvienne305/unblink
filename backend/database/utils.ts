@@ -11,16 +11,6 @@ export async function getMediaById(id: string): Promise<Media | undefined> {
     const row = await stmt.get(id) as any;
 
     if (row) {
-        // Map lowercase column names to camelCase for consistency with interface
-        if (row.save_to_disk !== undefined) {
-            row.save_to_disk = row.save_to_disk;
-            delete row.save_to_disk;
-        }
-        if (row.save_location !== undefined) {
-            row.save_location = row.save_location;
-            delete row.save_location;
-        }
-
         try {
             row.labels = JSON.parse(row.labels);
         } catch (e) {
