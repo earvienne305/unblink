@@ -1,4 +1,4 @@
-import type { ObjectDetectionMessage } from ".";
+import type { SegmentationMessage } from ".";
 
 // Webhook Contract
 export type WebhookMessage = ({
@@ -6,6 +6,6 @@ export type WebhookMessage = ({
     media_id: string;
     media_unit_id: string;
     description: string;
-} | ObjectDetectionMessage) & {
+} | SegmentationMessage) & {
     created_at: string;
 }

@@ -13,9 +13,6 @@ export type FrameStatsMessage = {
     timestamp: number; // Unix timestamp in milliseconds
 }
 
-export type DetectionObject = WorkerOutput__Segmentation[][0];
-
-
 export type StreamMessage = {
     type: "codec";
     mimeType: string | null;
@@ -38,11 +35,18 @@ export type StreamMessage = {
     type: 'ended';
 };
 
-export type ObjectDetectionMessage = {
-    type: 'object_detection';
+export type SegmentationMessage = {
+    type: 'segmentation';
     media_id: string;
     media_unit_id: string;
-    detections: DetectionObject[];
+    frame_count: number;
+    objects: number[];
+    scores: number[];
+    boxes: number[][];
+    masks: Array<{
+        size: [number, number];
+        counts: number[] | string;
+    }>;
 }
 
 
@@ -68,7 +72,7 @@ export type ClientToServerMessage = {
 export type WorkerToServerMessage =
     // WorkerObjectDetectionToServerMessage | 
     WorkerStreamToServerMessage
-export type ServerToClientMessage = (WorkerToServerMessage | ObjectDetectionMessage | FrameStatsMessage | {
+export type ServerToClientMessage = (WorkerToServerMessage | SegmentationMessage | FrameStatsMessage | {
     type: 'agent_card';
     media_unit: MediaUnit;
 }) & {

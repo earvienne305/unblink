@@ -1,18 +1,18 @@
 import path from "path";
 import type {
   FrameStatsMessage,
-  ObjectDetectionMessage,
+  SegmentationMessage,
   ServerEphemeralState,
   ServerToClientMessage,
 } from "~/shared";
 import {
   type WorkerInput__Embedding,
   type WorkerInput__MotionEnergy,
-  type WorkerInput__ObjectDetection,
+  type WorkerInput__Segmentation,
   type WorkerInput__Vlm,
   type WorkerOutput__Embedding,
   type WorkerOutput__MotionEnergy,
-  type WorkerOutput__ObjectDetection,
+  type WorkerOutput__Segmentation,
   type WorkerOutput__Vlm,
   type WorkerType,
 } from "~/shared/engine";
@@ -197,8 +197,8 @@ export const create_builders: (opts: ForwardingOpts) => {
         }
       },
     },
-    object_detection: {
-      worker_types: ["object_detection"],
+    segmentation: {
+      worker_types: ["segmentation"],
       interval: 1000,
       should_run({ in_moment }) {
         return true;
@@ -206,22 +206,35 @@ export const create_builders: (opts: ForwardingOpts) => {
 
       build({ reqBuilder, worker_type, media_id, media_unit_id }) {
         reqBuilder
-          .add_job<WorkerInput__ObjectDetection, WorkerOutput__ObjectDetection>(
+          .add_job<WorkerInput__Segmentation, WorkerOutput__Segmentation>(
             worker_type,
             {
-              filepath: {
+              cross_job_id: media_id,
+              current_frame: {
                 __type: "resource-ref",
                 id: media_unit_id,
               },
+              prompts: ["person", "vehicle", "animal"], // Default prompts, can be configured
             }
           )
           .then(async (output) => {
-            const msg: ObjectDetectionMessage = {
-              type: "object_detection",
+            // Check if output has error
+            if ('error' in output) {
+              logger.error(`Segmentation error for ${media_id}: ${output.error}`);
+              return;
+            }
+
+            const msg: SegmentationMessage = {
+              type: "segmentation",
               media_id,
               media_unit_id,
-              detections: output.detections as any,
+              frame_count: output.frame_count,
+              objects: output.objects,
+              scores: output.scores,
+              boxes: output.boxes,
+              masks: output.masks,
             };
+            
             opts.forward_to_webhook({
               ...msg,
               created_at: new Date().toISOString(),
