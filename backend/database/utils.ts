@@ -1,6 +1,6 @@
 import type { Database } from '@tursodatabase/database';
 import { getDb } from './database';
-import type { Media, MediaUnit, Secret, Session, Setting, User, Moment } from '~/shared/database';
+import type { Media, MediaUnit, Secret, Session, Setting, User, Agent, Moment } from '~/shared/database';
 import type { RESTQuery } from '~/shared';
 
 
@@ -373,9 +373,15 @@ export async function getAllSessions(): Promise<Session[]> {
 }
 
 // Function to get media units by embedding (for similarity search)
-export async function getMediaUnitsByEmbedding(queryEmbedding: number[]): Promise<(Omit<MediaUnit, 'embedding'> & { similarity: number })[]> {
+export async function getMediaUnitsByEmbedding(queryEmbedding: number[], options?: { requireDescription?: boolean }): Promise<(Omit<MediaUnit, 'embedding'> & { similarity: number })[]> {
     const db = await getDb();
     const queryEmbeddingStr = `[${queryEmbedding.join(',')}]`;
+    
+    let whereClause = 'WHERE embedding IS NOT NULL';
+    if (options?.requireDescription) {
+        whereClause += ' AND description IS NOT NULL';
+    }
+    
     const stmt = db.prepare(`
         SELECT 
             id, 
@@ -386,7 +392,7 @@ export async function getMediaUnitsByEmbedding(queryEmbedding: number[]): Promis
             path, 
             type
         FROM media_units 
-        WHERE embedding IS NOT NULL
+        ${whereClause}
         ORDER BY similarity
         LIMIT 20
     `);
@@ -534,5 +540,51 @@ export async function updateMoment(id: string, updates: Partial<Omit<Moment, 'id
 export async function deleteMoment(id: string): Promise<void> {
     const db = await getDb();
     const stmt = db.prepare('DELETE FROM moments WHERE id = ?');
+    await stmt.run(id);
+}
+
+// Agent utilities
+export async function createAgent(agent: Agent): Promise<void> {
+    const db = await getDb();
+    const stmt = db.prepare(`
+        INSERT INTO agents (id, name, instruction)
+        VALUES (?, ?, ?)
+    `);
+    await stmt.run(agent.id, agent.name, agent.instruction);
+}
+
+export async function getAgentById(id: string): Promise<Agent | undefined> {
+    const db = await getDb();
+    const stmt = db.prepare('SELECT * FROM agents WHERE id = ?');
+    return await stmt.get(id) as Agent | undefined;
+}
+
+export async function getAgentByName(name: string): Promise<Agent | undefined> {
+    const db = await getDb();
+    const stmt = db.prepare('SELECT * FROM agents WHERE name = ?');
+    return await stmt.get(name) as Agent | undefined;
+}
+
+export async function getAllAgents(): Promise<Agent[]> {
+    const db = await getDb();
+    const stmt = db.prepare('SELECT * FROM agents');
+    return await stmt.all() as Agent[];
+}
+
+export async function updateAgent(id: string, updates: Partial<Omit<Agent, 'id'>>): Promise<void> {
+    const db = await getDb();
+    const fields = Object.keys(updates);
+    if (fields.length === 0) return;
+
+    const setClause = fields.map(field => `${field} = ?`).join(', ');
+    const values = fields.map(field => (updates as any)[field]);
+
+    const stmt = db.prepare(`UPDATE agents SET ${setClause} WHERE id = ?`);
+    await stmt.run(...values, id);
+}
+
+export async function deleteAgent(id: string): Promise<void> {
+    const db = await getDb();
+    const stmt = db.prepare('DELETE FROM agents WHERE id = ?');
     await stmt.run(id);
 }

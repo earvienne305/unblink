@@ -1,8 +1,8 @@
+import { FiFilm, FiRefreshCw } from "solid-icons/fi";
 import { createResource, For, Show } from "solid-js";
-import { FiImage } from "solid-icons/fi";
-import LayoutContent from "./LayoutContent";
 import type { Moment } from "../../shared/database";
 import { setTab } from "../shared";
+import LayoutContent from "./LayoutContent";
 
 type MomentWithThumbnail = Moment;
 
@@ -15,14 +15,15 @@ const fetchMoments = async (): Promise<MomentWithThumbnail[]> => {
 };
 
 export default function MomentsContent() {
-    const [moments] = createResource(fetchMoments);
+    const [moments, { refetch }] = createResource(fetchMoments);
 
     const handleMomentClick = (moment: Moment) => {
         setTab({ type: 'moment_playback', moment_id: moment.id });
     };
 
     return (
-        <LayoutContent title="Moments">
+        <LayoutContent 
+        title="Moments" head_tail={<button onClick={() => refetch()} class="ml-auto text-neu-400 hover:text-neu-100"><FiRefreshCw /></button>}>
             <div class="h-full p-6 overflow-y-auto">
                 <Show when={!moments.loading} fallback={<div class="text-neu-400">Loading moments...</div>}>
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -60,7 +61,7 @@ export default function MomentsContent() {
                     <Show when={moments()?.length === 0}>
                         <div class="h-full flex items-center justify-center text-neu-500">
                             <div>
-                                <FiImage class="mb-4 w-12 h-12" />
+                                <FiFilm class="mb-4 w-12 h-12" />
                                 <p>No moments found</p>
                                 <p>Events detected in your streams will appear here</p>
                             </div>

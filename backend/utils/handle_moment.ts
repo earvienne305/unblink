@@ -8,6 +8,97 @@ import type { MomentData } from "./frame_stats";
 import type { Resource } from "~/shared/engine";
 import { parseJsonFromString } from "./dirty_json";
 
+type FrameData = {
+    id: string;
+    at_time: number;
+    data: Uint8Array;
+};
+
+async function summarizeMoment(
+    frames: FrameData[],
+    momentId: string,
+    send_to_engine: (msg: InMemWorkerRequest) => void,
+    retryCount: number = 0,
+    maxRetries: number = 10
+) {
+    if (frames.length === 0) {
+        logger.warn(`No frames provided for moment ${momentId}, skipping summarization`);
+        return;
+    }
+
+    const image_resources: Resource[] = frames.map(f => ({
+        id: f.id,
+        data: f.data,
+        type: 'image'
+    }));
+
+    const system_prompt_resource: Resource = {
+        id: crypto.randomUUID(),
+        type: 'text',
+        content: `You are an AI assistant that analyzes multiple images and provides unified titles and descriptions.`,
+        kind: 'system_prompt',
+    };
+
+    const user_text_resource: Resource = {
+        id: crypto.randomUUID(),
+        type: 'text',
+        content: `Analyze these images and provide a single title and description that encompasses both of them. Your response must be valid JSON containing only the keys 'title' and 'description', with no additional keys, markdown, or extra text. Format: {\"title\": \"string\", \"description\": \"string\"}`,
+        kind: 'user_text',
+    };
+
+    const resources = [system_prompt_resource, user_text_resource, ...image_resources];
+
+    logger.info({ momentId, retryCount }, `Starting moment summarization (attempt ${retryCount + 1}/${maxRetries + 1})`);
+
+    const msg: InMemWorkerRequest = {
+        type: 'worker_request',
+        resources,
+        jobs: [
+            {
+                worker_type: 'vlm',
+                resources: resources.map(r => ({ id: r.id })),
+                cont(output) {
+                    logger.info({ momentId, output }, 'Received summarization response');
+                    const parsed = parseJsonFromString(output.response);
+                    if (parsed.error) {
+                        logger.error({ error: parsed.error, response: output.response, retryCount }, "Failed to parse summarization response");
+                        if (retryCount < maxRetries) {
+                            logger.info({ momentId, retryCount: retryCount + 1 }, "Retrying summarization");
+                            summarizeMoment(frames, momentId, send_to_engine, retryCount + 1, maxRetries);
+                        } else {
+                            logger.error({ momentId }, "Max retries reached for summarization");
+                        }
+                        return;
+                    }
+
+                    logger.info({ parsed }, 'Parsed summarization response');
+
+                    const title = parsed.data.title;
+                    const description = parsed.data.description;
+                    if (typeof title === 'string' && typeof description === 'string') {
+                        updateMoment(momentId, {
+                            title,
+                            description,
+                        });
+                        logger.info({ momentId }, "Successfully updated moment with summarization");
+                    } else {
+                        logger.error({ response: output.response, retryCount }, "Summarization response missing valid title or description");
+                        if (retryCount < maxRetries) {
+                            logger.info({ momentId, retryCount: retryCount + 1 }, "Retrying summarization due to invalid response");
+                            summarizeMoment(frames, momentId, send_to_engine, retryCount + 1, maxRetries);
+                        } else {
+                            logger.error({ momentId }, "Max retries reached for summarization due to invalid response");
+                        }
+                    }
+                }
+            }
+        ],
+    };
+
+    send_to_engine(msg);
+    logger.info(`Sent moment summarization request for ${momentId} with ${frames.length} frames`);
+}
+
 export async function handleMoment(
     moment: MomentData,
     state: ServerEphemeralState,
@@ -55,62 +146,7 @@ export async function handleMoment(
         // Trigger summarization
         // momentFrames is already defined above
         if (momentFrames.length > 0) {
-            const image_resources: Resource[] = momentFrames.map(f => ({
-                id: f.id,
-                data: f.data,
-                type: 'image'
-            }))
-
-            const query = `Describe specific details of main subjects.
-                Ignore generic scenery. 
-                Do not use phrases like 'The image shows', rather start directly with the subject. 
-                Output a valid JSON object with keys: title (5 words), description (1 sentence or 2 sentences). 
-                Example: {\"title\": \"...\", \"description\": \"...\"}`
-
-            const text_resource: Resource = {
-                id: crypto.randomUUID(),
-                type: 'text',
-                content: query,
-            }
-
-            const resources = [...image_resources, text_resource];
-
-
-            const msg: InMemWorkerRequest = {
-                type: 'worker_request',
-                resources,
-                jobs: [
-                    {
-                        worker_type: 'caption',
-                        resources: resources.map(r => ({ id: r.id })),
-                        cont(output) {
-                            console.log('summarize moment', output);
-                            // summarize moment {
-                            //   id: "bb4e228f-9d8c-4107-ba4b-bec110dc3577",
-                            //   response: "{\n  \"title\": \"White van and metal structure\",\n  \"description\": \"A white van is parked near a tall metal structure.\"\n}",
-                            // }
-                            const parsed = parseJsonFromString(output.response);
-                            if (parsed.error) {
-                                logger.error({ error: parsed.error, response: output.response }, "Failed to parse caption response");
-                                return;
-                            }
-
-                            const title = parsed.data.title;
-                            const description = parsed.data.description;
-
-                            updateMoment(finalMomentId, {
-                                title,
-                                description,
-                            })
-                        }
-                    }
-                ],
-
-
-            };
-
-            send_to_engine(msg);
-            logger.info(`Sent moment enrichment request for ${moment.media_id} with ${momentFrames.length} frames`);
+            summarizeMoment(momentFrames, finalMomentId, send_to_engine);
 
             // Clear frames for this media
             state.moment_frames.delete(moment.media_id);

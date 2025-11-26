@@ -207,7 +207,7 @@ class OutputFile {
         await obj.mediaOutput.close();
         try {
             await fs.unlink(obj.path);
-            logger.info({ path: obj.path }, "Deleted false alarm moment file");
+            // logger.info({ path: obj.path }, "Deleted false alarm moment file");
         } catch (error) {
             logger.error({ error, path: obj.path }, "Failed to delete false alarm moment file");
         }
@@ -428,7 +428,7 @@ export async function streamMedia(
                         const codecContext = videoEncoder.getCodecContext()
                         if (codecContext) {
                             momentOutput = await OutputFile.create(startArg.id, streamState.current_moment_id, codecContext, startArg.save_location || MOMENTS_DIR);
-                            logger.info({ path: momentOutput.path, output_id: streamState.current_moment_id }, "Created new moment output file");
+                            // logger.info({ path: momentOutput.path, output_id: streamState.current_moment_id }, "Created new moment output file");
                         }
                     }
                 }
@@ -437,7 +437,7 @@ export async function streamMedia(
                 const shouldDelete = streamState?.discard_previous_maybe_moment === true;
 
                 if (shouldDelete) {
-                    logger.info({ output_id: momentOutput.output_id }, "Moment was false alarm, closing and deleting output");
+                    // logger.info({ output_id: momentOutput.output_id }, "Moment was false alarm, closing and deleting output");
                     await OutputFile.discard(momentOutput);
                 } else {
                     // Real moment - close, rename, and notify with final path

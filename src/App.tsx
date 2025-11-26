@@ -10,6 +10,7 @@ import MomentPlaybackContent from './content/MomentPlaybackContent';
 import SearchContent from './content/SearchContent';
 import SearchResultContent from './content/SearchResultContent';
 import SettingsContent from './content/SettingsContent';
+import AgentsContent from './content/AgentsContent';
 import { cameras, conn, fetchCameras, setAgentCards, setConn, setStatsMessages, subscription, tab, type Tab } from './shared';
 import SideBar from './SideBar';
 import { connectWebSocket, newMessage } from './video/connection';
@@ -95,6 +96,7 @@ export default function App() {
             'search': SearchContent,
             'search_result': SearchResultContent,
             'settings': SettingsContent,
+            'agents': AgentsContent,
         }
 
     }

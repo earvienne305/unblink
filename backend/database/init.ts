@@ -27,6 +27,16 @@ export async function initDatabase(client: Database) {
             );
         `);
         logger.info("Table 'media_units' created.");
+    } else {
+        // Check if created_by_agent_id column exists and add it if not
+        const columnsStmt = client.prepare("PRAGMA table_info(media_units)");
+        const columns = await columnsStmt.all() as { name: string }[];
+        const columnNames = columns.map(col => col.name);
+        
+        if (!columnNames.includes('created_by_agent_id')) {
+            await client.exec(`ALTER TABLE media_units ADD COLUMN created_by_agent_id TEXT`);
+            logger.info("Added 'created_by_agent_id' column to 'media_units' table.");
+        }
     }
 
     // Create 'media' table
@@ -117,6 +127,18 @@ export async function initDatabase(client: Database) {
             );
         `);
         logger.info("Table 'moments' created.");
+    }
+
+    // Create 'agents' table
+    if (!existingTables.has('agents')) {
+        await client.exec(`
+            CREATE TABLE agents (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                instruction TEXT NOT NULL
+            );
+        `);
+        logger.info("Table 'agents' created.");
     }
 }
 

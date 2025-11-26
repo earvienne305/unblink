@@ -132,7 +132,7 @@ export default function MomentPlaybackContent() {
     }
 
     return (
-        <LayoutContent title="Moment Playback">
+        <LayoutContent title="Moment Playback" show_back_button>
             <div class="h-full flex flex-col">
                 <Show when={!moment.loading && moment()} fallback={
                     <div class="flex-1 flex items-center justify-center text-neu-400">
@@ -219,7 +219,7 @@ export default function MomentPlaybackContent() {
                                                     e.stopPropagation();
                                                     e.preventDefault();
                                                 }}
-                                                class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-4 pb-4 pt-8 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                                class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/80 to-transparent px-4 pb-4 pt-8 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                                 {/* Progress Bar */}
                                                 <div
                                                     class="relative h-1 bg-white/30 cursor-pointer mb-4 group/progress"

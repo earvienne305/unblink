@@ -1,14 +1,11 @@
-import { formatDistance } from "date-fns";
-import { FaSolidChevronLeft, FaSolidChevronRight } from "solid-icons/fa";
 import { For, Show, createEffect, createSignal, onCleanup } from "solid-js";
-import { v4 as uuid } from 'uuid';
 import type { RESTQuery } from "~/shared";
 import type { MediaUnit } from "~/shared/database";
-import ConfigureViewDialog from "./ConfigureViewDialog";
-import CanvasVideo from "./CanvasVideo";
 import ActivityBar from "./ActivityBar";
-import LoadingSkeleton from "./search/LoadingSkeleton";
-import { cameras, relevantAgentCards, setAgentCards, setSubscription, settings, subscription, tab } from "./shared";
+import CanvasVideo from "./CanvasVideo";
+import ConfigureViewDialog from "./ConfigureViewDialog";
+import { cameras, setAgentCards, setSubscription, settings, tab } from "./shared";
+import { useAgentBar } from "./AgentBar";
 
 const GAP_SIZE = '8px';
 
@@ -23,28 +20,8 @@ const chunk = <T,>(arr: T[]): T[][] => {
     );
 }
 
-
-
-function useAgentBar() {
-    const [showAgentBar, setShowAgentBar] = createSignal(true);
-
-    return {
-        showAgentBar,
-        setShowAgentBar,
-        Toggle: () => <button
-            onClick={() => setShowAgentBar(prev => !prev)}
-            class="btn-small">
-            <Show when={showAgentBar()} fallback={<FaSolidChevronLeft class="w-4 h-4 " />}>
-                <FaSolidChevronRight class="w-4 h-4 " />
-            </Show>
-            <div>Agent</div>
-        </button>
-    }
-}
-
 export default function ViewContent() {
     const [showDetections, setShowDetections] = createSignal(true);
-    const agentBar = useAgentBar();
 
 
     const viewedMedias = () => {
@@ -92,7 +69,7 @@ export default function ViewContent() {
                     }, {
                         'field': 'description', 'op': 'is_not', 'value': null
                     }],
-                    select: ['id', 'media_id', 'at_time', 'description', 'path', 'type'],
+                    select: ['id', 'media_id', 'at_time', 'description', 'path', 'type', 'created_by_agent_id'],
                     limit: 20,
                     order_by: { field: 'at_time', direction: 'DESC' }
                 } as RESTQuery,
@@ -125,6 +102,7 @@ export default function ViewContent() {
         setSubscription();
     });
 
+    const agentBar = useAgentBar();
 
 
     return (
@@ -183,42 +161,7 @@ export default function ViewContent() {
                 <ActivityBar viewedMedias={viewedMedias} cameras={cameras} />
             </div>
 
-            <div
-                data-show={agentBar.showAgentBar()}
-                class="flex-none data-[show=true]:w-xl w-0 h-screen transition-[width] duration-300 ease-in-out overflow-hidden  flex flex-col">
-                <div class="border-l border-neu-800 bg-neu-900 shadow-2xl rounded-2xl flex-1 mr-2 my-2 flex flex-col h-full overflow-hidden">
-                    <div class="h-14 flex items-center p-2">
-                        <agentBar.Toggle />
-                    </div>
-
-                    <Show when={agentBar.showAgentBar()}>
-                        <div class="flex-1 p-2 overflow-y-auto space-y-4">
-                            <Show when={relevantAgentCards().length > 0} fallback={
-                                <LoadingSkeleton />
-                            }>
-                                <For each={relevantAgentCards()}>
-                                    {(card) => {
-                                        const stream_name = () => {
-                                            const camera = cameras().find(c => c.id === card.media_id);
-                                            return camera ? camera.name : 'Unknown Stream';
-                                        }
-                                        return <div class="animate-push-down p-4 bg-neu-850 rounded-2xl space-y-2">
-                                            <div class="font-semibold">{stream_name()}</div>
-                                            <div class="text-neu-400 text-sm">{formatDistance(card.at_time, Date.now(), {
-                                                addSuffix: true,
-                                                includeSeconds: true
-                                            })}</div>
-                                            <div>{card.description}</div>
-                                            <img src={`/files?path=${card.path}`} class="rounded-lg" />
-                                        </div>
-                                    }}
-                                </For>
-                            </Show>
-                        </div>
-                    </Show>
-
-                </div>
-            </div>
+            <agentBar.Comp />
         </div>
 
     );

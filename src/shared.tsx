@@ -2,7 +2,7 @@ import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import type { ClientToServerMessage, FrameStatsMessage, ServerToClientMessage, Subscription, User } from "~/shared";
 import type { Conn } from "~/shared/Conn";
-import type { MediaUnit } from "~/shared/database";
+import type { MediaUnit, Agent } from "~/shared/database";
 
 export type Camera = {
     id: string;
@@ -15,7 +15,7 @@ export type Camera = {
 };
 
 export type Tab = {
-    type: 'home' | 'search' | 'moments' | 'settings';
+    type: 'home' | 'search' | 'moments' | 'agents' | 'settings';
 } | {
     type: 'view';
     medias: {
@@ -36,7 +36,26 @@ export const authorized_as_admin = () => {
     const u = user();
     return u && u.role === 'admin';
 }
-export const [tab, setTab] = createSignal<Tab>({ type: 'home' });
+
+export const [tab, _setTab] = createSignal<Tab>({ type: 'home' });
+const tab_history : Tab[] = [];
+export const setTab = (t: Tab) => {
+    console.log("Setting tab to:", t);
+    _setTab(t);
+    tab_history.push(t);
+}
+export const goBackTab = () => {
+    if (tab_history.length <= 1) return;
+    tab_history.pop();
+    const previous_tab = tab_history.pop()!;
+    console.log("Going back to tab:", previous_tab);
+    setTab(previous_tab);
+}
+export const canGoBackTab = () => {
+    return tab_history.length > 1;
+}
+
+
 export const [cameras, setCameras] = createSignal<Camera[]>([]);
 export const [camerasLoading, setCamerasLoading] = createSignal(true);
 export const [subscription, setSubscription] = createSignal<Subscription>();
@@ -78,6 +97,27 @@ export const fetchCameras = async () => {
     }
 };
 
+
+export const [agents, setAgents] = createSignal<Agent[]>([]);
+export const [agentsLoading, setAgentsLoading] = createSignal(true);
+export const fetchAgents = async () => {
+    setAgentsLoading(true);
+    try {
+        const response = await fetch('/agents');
+        if (response.ok) {
+            const data = await response.json();
+            setAgents(data);
+        } else {
+            console.error('Failed to fetch agents');
+            setAgents([]);
+        }
+    } catch (error) {
+        console.error('Error fetching agents:', error);
+        setAgents([]);
+    } finally {
+        setAgentsLoading(false);
+    }
+};
 
 export const [agentCards, setAgentCards] = createSignal<MediaUnit[]>([]);
 export const relevantAgentCards = () => {

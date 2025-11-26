@@ -6,7 +6,7 @@ import { admin } from "./admin";
 import { WsClient } from "./backend/WsClient";
 import { FRAMES_DIR, RUNTIME_DIR } from "./backend/appdir";
 import { auth_required, verifyPassword } from "./backend/auth";
-import { createMedia, createSession, deleteMedia, deleteSession, getAllMedia, getAllMoments, getAllSettings as getAllSettingsDB, getAllUsers, getByQuery, getMediaUnitsByEmbedding, getMomentById, getUserByUsername as getUserByUsernameDB, setSetting as setSettingDB, updateMedia } from "./backend/database/utils";
+import { createMedia, createSession, deleteMedia, deleteSession, getAllMedia, getAllMoments, getAllSettings as getAllSettingsDB, getAllUsers, getByQuery, getMediaUnitsByEmbedding, getMomentById, getUserByUsername as getUserByUsernameDB, setSetting as setSettingDB, updateMedia, getAllAgents, deleteAgent, createAgent } from "./backend/database/utils";
 import { createForwardFunction } from "./backend/forward";
 import { logger } from "./backend/logger";
 import { check_version } from "./backend/startup/check_version";
@@ -412,8 +412,40 @@ const server = Bun.serve({
                     throw new Error("No embedding returned from engine");
                 }
 
-                const media_units = await getMediaUnitsByEmbedding(embedding);
+                const media_units = await getMediaUnitsByEmbedding(embedding, {
+                    requireDescription: true
+                });
                 return Response.json({ media_units });
+            }
+        },
+        '/agents': {
+            GET: async () => {
+                const agents = await getAllAgents();
+                return Response.json(agents);
+            },
+            POST: async (req: Request) => {
+                const auth_res = await auth_required(settings, req);
+                if (auth_res.error) {
+                    return new Response(auth_res.error.msg, { status: auth_res.error.code || 401 });
+                }
+
+                const body = await req.json();
+                const { name, instruction } = body;
+                if (!name || !instruction) {
+                    return new Response('Missing name or instruction', { status: 400 });
+                }
+                const id = uuid();
+                await createAgent({ id, name, instruction });
+
+                logger.info(`New agent created via API: ${name} (${id})`);
+                return Response.json({ success: true, id });
+            },
+        },
+        '/agents/:id': {
+            DELETE: async ({ params }: { params: { id: string } }) => {
+                const { id } = params;
+                await deleteAgent(id);
+                return Response.json({ success: true });
             }
         },
         '/state': {

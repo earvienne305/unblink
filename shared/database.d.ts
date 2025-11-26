@@ -23,6 +23,7 @@ export interface MediaUnit {
     embedding?: Uint8Array | null; // Stored as BLOB
     path: string;
     type: string;
+    created_by_agent_id?: string | null;
 }
 
 export interface Secret {
@@ -42,6 +43,12 @@ export interface User {
     username: string;
     password_hash: string;
     role: string;
+}
+
+export interface Agent {
+    id: string;
+    name: string;
+    instruction: string;
 }
 
 export interface Moment {

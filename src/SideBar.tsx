@@ -1,9 +1,10 @@
 
 import { FaSolidChevronDown } from 'solid-icons/fa';
-import { FiClock, FiFilm, FiGithub, FiGrid, FiLogOut, FiMonitor, FiSearch, FiSettings } from 'solid-icons/fi';
+import { FiClock, FiFilm, FiGithub, FiGrid, FiLogOut, FiMonitor, FiSearch, FiSettings, FiEye } from 'solid-icons/fi';
 import { createMemo, createSignal, For, onMount, Show } from 'solid-js';
 import logoSVG from '~/assets/logo.svg';
 import AddCameraButton from './AddCameraButton';
+import AddAgentButton from './AddAgentButton';
 import { toaster } from './ark/ArkToast';
 import { authorized_as_admin, cameras, camerasLoading, fetchCameras, setTab, tab, user, type Camera } from './shared';
 
@@ -126,6 +127,11 @@ export default function SideBar() {
             name: 'Moments',
             icon: FiFilm,
         },
+        {
+            id: 'agents',
+            name: 'Agents',
+            icon: FiEye,
+        },
     ];
 
     return <div class="w-80 h-screen pl-2 py-2 select-none">
@@ -158,8 +164,12 @@ export default function SideBar() {
             </div>
 
 
-            <div class="mx-4 mb-4">
+            <div class="mx-4 mb-2">
                 <AddCameraButton />
+            </div>
+
+            <div class="mx-4 mb-4">
+                <AddAgentButton />
             </div>
 
             <div class="flex-1 space-y-2 overflow-y-auto">
