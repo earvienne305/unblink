@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import path from "path";
 import { createRequestBuilder } from "~/index";
 import type { ServerEphemeralState } from "~/shared";
-import type { Resource, WorkerInput__Llm, WorkerInput__Vlm, WorkerOutput__Llm, WorkerOutput__Vlm } from "~/shared/engine";
+import type { Resource, WorkerInput__Caption, WorkerInput__Llm, WorkerInput__Vlm, WorkerOutput__Caption, WorkerOutput__Llm, WorkerOutput__Vlm } from "~/shared/engine";
 import { FRAMES_DIR } from "../appdir";
 import { createMoment, updateMoment } from "../database/utils";
 import { logger } from "../logger";
@@ -34,34 +34,36 @@ async function summarizeMoment(
 
     const reqBuilder = createRequestBuilder();
     reqBuilder.add_resources(image_resources);
-    const vlm_output_promise = reqBuilder.add_job<WorkerInput__Vlm, WorkerOutput__Vlm>('vlm', {
-        messages: [
-            {
-                role: 'system',
-                content: [{
-                    type: 'text',
-                    text: 'You are a security camera analyst. Describe what you observe in these video frames naturally and in detail.'
-                }]
-            },
-            {
-                role: 'user',
-                content: [
-                    {
-                        type: 'text',
-                        text: 'These are consecutive frames from a security camera. Describe what is happening. Focus on any abnormal behavior, unusual activities, or significant changes. Pay attention to people, objects, movements, and any concerning patterns. Answer naturally and in detail.'
-                    },
-                    ...image_resources.map(r => ({
-                        type: 'image' as const,
-                        image: { __type: 'resource-ref' as const, id: r.id }
-                    }))
-                ]
-            }
-        ]
+    const read_promise = reqBuilder.add_job<WorkerInput__Caption, WorkerOutput__Caption>('caption', {
+        images: image_resources.map(r => ({ __type: 'resource-ref' as const, id: r.id })),
+        query: 'Describe the activities and events happening in these consecutive camera frames, focusing on any abnormal behavior or notable actions. Pinpoint each individual and object. Pay attention to movements, interactions, and any unusual occurrences, like something entering or leaving the scene or possible safety concerns.'
+        // messages: [
+        //     {
+        //         role: 'system',
+        //         content: [{
+        //             type: 'text',
+        //             text: 'You are a security camera analyst. Describe what you observe in these video frames naturally and in detail.'
+        //         }]
+        //     },
+        //     {
+        //         role: 'user',
+        //         content: [
+        //             {
+        //                 type: 'text',
+        //                 text: 'These are consecutive frames from a security camera. Describe what is happening. Focus on any abnormal behavior, unusual activities, or significant changes. Pay attention to people, objects, movements, and any concerning patterns. Answer naturally and in detail.'
+        //             },
+        //             ...image_resources.map(r => ({
+        //                 type: 'image' as const,
+        //                 image: { __type: 'resource-ref' as const, id: r.id }
+        //             }))
+        //         ]
+        //     }
+        // ]
     })
 
 
     reqBuilder.send();
-    const vlm_output = await vlm_output_promise;
+    const read_output = await read_promise;
 
     const llm_reqBuilder = createRequestBuilder();
 
@@ -78,7 +80,7 @@ async function summarizeMoment(
 2. "description": A detailed description of what was observed, including context and any concerns.
 
 Observation:
-${vlm_output.response}
+${read_output.response}
 
 Respond with ONLY valid JSON in this format:
 {
