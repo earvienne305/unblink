@@ -134,10 +134,14 @@ export const create_builders: (opts: ForwardingOpts) => {
             );
           };
 
+          logger.info({ media_unit_id }, 'indexing: Creating VLM jobs');
+
           // 1. General description job (always runs, updates media_unit.description)
-          createVlmJob(
+          const descriptionJob = createVlmJob(
             "Provide a concise description of the content of this image in a few words."
-          ).then(async (output) => {
+          );
+          
+          descriptionJob.then(async (output) => {
             const description = cleanResponse(output.response);
 
             const mu = await getMediaUnitById(media_unit_id);
@@ -175,10 +179,18 @@ export const create_builders: (opts: ForwardingOpts) => {
             updateMediaUnit(media_unit_id, { description });
           });
 
+          logger.info({ media_unit_id }, 'indexing: Fetching custom agents from database');
+
           // 2. Custom agents from database (store in agent_responses table)
           const agents = await getAllAgents();
+
+          logger.info({ media_unit_id, agents }, `indexing: Retrieved custom agents from database`);
           for (const agent of agents) {
-            createVlmJob(agent.instruction).then(async (output) => {
+            logger.info({ media_unit_id, agent_id: agent.id }, 'indexing: Creating VLM job for custom agent');
+            const agentJob = createVlmJob(agent.instruction);
+            
+            agentJob.then(async (output) => {
+              logger.info({ media_unit_id, agent_id: agent.id }, 'indexing: Processing VLM job output for custom agent');
               const content = cleanResponse(output.response);
 
               const mu = await getMediaUnitById(media_unit_id);

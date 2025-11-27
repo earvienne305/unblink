@@ -622,3 +622,9 @@ export async function getAgentResponseById(id: string): Promise<AgentResponse | 
     const stmt = db.prepare('SELECT * FROM agent_responses WHERE id = ?');
     return await stmt.get(id) as AgentResponse | undefined;
 }
+
+export async function getAllAgentResponses(): Promise<AgentResponse[]> {
+    const db = await getDb();
+    const stmt = db.prepare('SELECT * FROM agent_responses ORDER BY created_at DESC');
+    return await stmt.all() as AgentResponse[];
+}

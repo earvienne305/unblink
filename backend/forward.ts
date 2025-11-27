@@ -107,7 +107,7 @@ export const createForwardFunction = (opts: ForwardingOpts) => {
                 state.streams[decoded.id]![builder_id] = now;
                 await builder.write?.(decoded.id, media_unit_id, decoded.data)
                 for (const worker_type of builder.worker_types) {
-                    builder.build({ reqBuilder,  worker_type, media_id: decoded.id, media_unit_id });
+                    await builder.build({ reqBuilder,  worker_type, media_id: decoded.id, media_unit_id });
                 }
             }
 
