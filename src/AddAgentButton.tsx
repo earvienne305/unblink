@@ -3,12 +3,32 @@ import { Dialog } from '@ark-ui/solid/dialog';
 import { ArkDialog } from './ark/ArkDialog';
 import { createSignal, untrack } from 'solid-js';
 import { toaster } from './ark/ArkToast';
-import { fetchAgents } from './shared';
+import { fetchAgents, setTab, tab } from './shared';
 import AgentPlusSVG from '~/assets/icons/AgentPlus.svg';
+
+const AGENT_TEMPLATES = [
+    {
+        name: 'Fall Detector',
+        instruction: 'Was there an incident? Check for possible fall patterns or if anyone has fallen to ensure worker safety.',
+    },
+    {
+        name: 'Security Monitor',
+        instruction: 'Are there any suspicious activities or unauthorized persons in the area? Monitor for security concerns.',
+    },
+    {
+        name: 'Safety Equipment',
+        instruction: 'Are all personnel wearing required safety equipment (helmets, vests, etc.)? Check for compliance.',
+    },
+];
 
 export default function AddAgentButton() {
     const [name, setName] = createSignal('');
     const [instruction, setInstruction] = createSignal('');
+
+    const applyTemplate = (template: typeof AGENT_TEMPLATES[0]) => {
+        setName(template.name);
+        setInstruction(template.instruction);
+    };
 
     const handleSave = async () => {
         const _name = untrack(name).trim();
@@ -29,7 +49,11 @@ export default function AddAgentButton() {
             if (response.ok) {
                 setName('');
                 setInstruction('');
-                fetchAgents(); // Refetch agents after successful creation
+                if (tab().type === 'agents') {
+                    await fetchAgents(); // Refetch agents after successful creation
+                } else {
+                    setTab({ type: 'agents' }); // Redirect to agents tab
+                }
             } else {
                 throw new Error('Failed to save agent');
             }
@@ -63,11 +87,24 @@ export default function AddAgentButton() {
     >
         <div class="mt-4 space-y-4">
             <div>
+                <label class="text-sm font-medium text-neu-300 block mb-2">Templates</label>
+                <div class="flex gap-2">
+                    {AGENT_TEMPLATES.map((template) => (
+                        <button
+                            onClick={() => applyTemplate(template)}
+                            class="text-xs flex-1 px-3 py-2 rounded-lg bg-neu-850 border border-neu-750 text-neu-300 hover:bg-neu-800 hover:border-neu-700 transition-colors truncate"
+                        >
+                            {template.name}
+                        </button>
+                    ))}
+                </div>
+            </div>
+            <div>
                 <label for="agent-name" class="text-sm font-medium text-neu-300">Agent Name</label>
                 <input
                     value={name()}
                     onInput={(e) => setName(e.currentTarget.value)}
-                    placeholder='Fall Detector'
+                    placeholder='Detector'
                     type="text" id="agent-name" class="px-4 py-2 mt-1 block w-full rounded-lg bg-neu-850 border border-neu-750 text-white focus:outline-none placeholder:text-neu-500" />
             </div>
             <div>
@@ -75,7 +112,7 @@ export default function AddAgentButton() {
                 <textarea
                     value={instruction()}
                     onInput={(e) => setInstruction(e.currentTarget.value)}
-                    placeholder='Ensure worker safety. Send alerts when possible fall patterns are detected, or when a worker remains down for an extended period.'
+                    placeholder='what happened in the video?'
                     id="agent-instruction" class="min-h-52 px-4 py-2 mt-1 block w-full rounded-lg bg-neu-850 border border-neu-750 text-white focus:outline-none placeholder:text-neu-500 resize-none" rows="3" />
             </div>
             <div class="flex justify-end pt-4">

@@ -19,13 +19,14 @@ import {
 import type { RequestBuilder } from "..";
 import { FRAMES_DIR } from "./appdir";
 import {
+  createAgentResponse,
   createMediaUnit,
+  getAllAgents,
   getMediaUnitById,
   updateMediaUnit,
 } from "./database/utils";
 import type { ForwardingOpts } from "./forward";
 import { logger } from "./logger";
-import { impossible } from "./utils/assert";
 import { calculateFrameStats, type MomentData } from "./utils/frame_stats";
 import { handleMoment } from "./utils/handle_moment";
 import { set_moment_state } from "./worker_connect/worker_stream_connector";
@@ -44,7 +45,7 @@ export type Builder = {
     worker_type: WorkerType;
     media_id: string;
     media_unit_id: string;
-  }) => void;
+  }) => void | Promise<void>;
 };
 
 export const create_builders: (opts: ForwardingOpts) => {
@@ -79,61 +80,106 @@ export const create_builders: (opts: ForwardingOpts) => {
         await createMediaUnit(mu);
       },
 
-      build({ reqBuilder, worker_type, media_id, media_unit_id }) {
+      async build({ reqBuilder, worker_type, media_id, media_unit_id }) {
         if (worker_type == "vlm") {
-          reqBuilder
-            .add_job<WorkerInput__Vlm, WorkerOutput__Vlm>(worker_type, {
-              messages: [
-                {
-                  role: "user",
-                  content: [
-                    {
-                      type: "text",
-                      text: "Provide a concise description of the content of this image in a few words.",
-                    },
-                  ],
-                },
-                {
-                  role: "assistant",
-                  content: [
-                    {
-                      type: "image",
-                      image: { __type: "resource-ref", id: media_unit_id },
-                    },
-                  ],
-                },
-              ],
-            })
-            .then(async (output) => {
-              let description = output.response;
-
-              // Try to remove common prefixes
-              // E.g., "This image depicts ...", "This image captures ...", "In this image, ", "The image shows ...", "The image captures ..."
-              const prefixes = [
-                "This is an image of a ",
-                "The image is ",
-                "The image depicts ",
-                "The image captures ",
-                "This image depicts ",
-                "This image captures ",
-                "In this image, ",
-                "The image shows ",
-                "The image captures ",
-                "This photo depicts ",
-                "This photo captures ",
-                "In this photo, ",
-                "The photo shows ",
-                "The photo captures ",
-              ];
-              for (const prefix of prefixes) {
-                if (description.startsWith(prefix)) {
-                  description = description.slice(prefix.length);
-                  // Properly capitalize first letter
-                  description =
-                    description.charAt(0).toUpperCase() + description.slice(1);
-                  break;
-                }
+          // Helper to clean up response text
+          const cleanResponse = (text: string): string => {
+            const prefixes = [
+              "This is an image of a ",
+              "The image is ",
+              "The image depicts ",
+              "The image captures ",
+              "This image depicts ",
+              "This image captures ",
+              "In this image, ",
+              "The image shows ",
+              "The image captures ",
+              "This photo depicts ",
+              "This photo captures ",
+              "In this photo, ",
+              "The photo shows ",
+              "The photo captures ",
+            ];
+            for (const prefix of prefixes) {
+              if (text.startsWith(prefix)) {
+                text = text.slice(prefix.length);
+                text = text.charAt(0).toUpperCase() + text.slice(1);
+                break;
               }
+            }
+            return text;
+          };
+
+          // Helper to create VLM job
+          const createVlmJob = (instruction: string) => {
+            return reqBuilder.add_job<WorkerInput__Vlm, WorkerOutput__Vlm>(
+              worker_type,
+              {
+                messages: [
+                  {
+                    role: "user",
+                    content: [{ type: "text", text: instruction }],
+                  },
+                  {
+                    role: "assistant",
+                    content: [
+                      {
+                        type: "image",
+                        image: { __type: "resource-ref", id: media_unit_id },
+                      },
+                    ],
+                  },
+                ],
+              }
+            );
+          };
+
+          // 1. General description job (always runs, updates media_unit.description)
+          createVlmJob(
+            "Provide a concise description of the content of this image in a few words."
+          ).then(async (output) => {
+            const description = cleanResponse(output.response);
+
+            const mu = await getMediaUnitById(media_unit_id);
+            if (!mu) {
+              logger.error(
+                `MediaUnit not found for media_unit_id ${media_unit_id}`
+              );
+              return;
+            }
+
+            // Forward to clients
+            const msg: ServerToClientMessage = {
+              type: "agent_card",
+              id: mu.id,
+              content: description,
+              media_id: mu.media_id,
+              media_unit_id: mu.id,
+              at_time: mu.at_time,
+              path: mu.path,
+            };
+            for (const [id, client] of opts.clients.entries()) {
+              client.send(msg);
+            }
+
+            // Forward to webhook
+            opts.forward_to_webhook({
+              event: "agent_response",
+              created_at: new Date().toISOString(),
+              media_unit_id: mu.id,
+              media_id: mu.media_id,
+              content: description,
+            });
+
+            // Update media unit in database
+            updateMediaUnit(media_unit_id, { description });
+          });
+
+          // 2. Custom agents from database (store in agent_responses table)
+          const agents = await getAllAgents();
+          for (const agent of agents) {
+            createVlmJob(agent.instruction).then(async (output) => {
+              const content = cleanResponse(output.response);
 
               const mu = await getMediaUnitById(media_unit_id);
               if (!mu) {
@@ -143,33 +189,47 @@ export const create_builders: (opts: ForwardingOpts) => {
                 return;
               }
 
-              const msg: ServerToClientMessage = {
-                type: "agent_card",
-                media_unit: {
-                  ...mu,
-                  description,
-                },
-              };
+              const agentResponseId = crypto.randomUUID();
+
+              // Store in agent_responses table
+              await createAgentResponse({
+                id: agentResponseId,
+                agent_id: agent.id,
+                media_unit_id: media_unit_id,
+                content: content,
+                created_at: Date.now(),
+              });
 
               // Forward to clients
+              const msg: ServerToClientMessage = {
+                type: "agent_card",
+                id: agentResponseId,
+                content: content,
+                media_id: media_id,
+                media_unit_id: media_unit_id,
+                at_time: mu.at_time,
+                agent_id: agent.id,
+                agent_name: agent.name,
+                path: mu.path,
+              };
+
+              logger.info({ msg }, "Forwarding agent response to clients");
               for (const [id, client] of opts.clients.entries()) {
                 client.send(msg);
               }
 
-              // Also forward to webhook
+              // Forward to webhook with agent fields
               opts.forward_to_webhook({
-                event: "description",
+                event: "agent_response",
                 created_at: new Date().toISOString(),
-                media_unit_id: mu.id,
-                media_id: mu.media_id,
-                description,
-              });
-
-              // Update media unit in database
-              updateMediaUnit(media_unit_id, {
-                description,
+                media_unit_id: media_unit_id,
+                media_id: media_id,
+                content: content,
+                agent_id: agent.id,
+                agent_name: agent.name,
               });
             });
+          }
         }
 
         if (worker_type == "embedding") {

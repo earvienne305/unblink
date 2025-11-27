@@ -130,5 +130,21 @@ export async function initDatabase(client: Database) {
         `);
         logger.info("Table 'agents' created.");
     }
+
+    // Create 'agent_responses' table
+    if (!existingTables.has('agent_responses')) {
+        await client.exec(`
+            CREATE TABLE agent_responses (
+                id TEXT PRIMARY KEY,
+                agent_id TEXT NOT NULL,
+                media_unit_id TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                FOREIGN KEY (agent_id) REFERENCES agents(id),
+                FOREIGN KEY (media_unit_id) REFERENCES media_units(id)
+            );
+        `);
+        logger.info("Table 'agent_responses' created.");
+    }
 }
 

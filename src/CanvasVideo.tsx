@@ -180,7 +180,10 @@ class MjpegPlayer {
                 this.renderFrameCount = 0;
                 this.renderLastTime = now;
             }
-            this.animationFrameId = requestAnimationFrame(() => this.render());
+            // Check isDestroyed again before scheduling next frame
+            if (!this.isDestroyed) {
+                this.animationFrameId = requestAnimationFrame(() => this.render());
+            }
         }
 
     }

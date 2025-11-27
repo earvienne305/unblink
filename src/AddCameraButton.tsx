@@ -3,7 +3,7 @@ import { AiOutlineVideoCameraAdd } from 'solid-icons/ai';
 import { Dialog } from '@ark-ui/solid/dialog';
 import { ArkDialog } from './ark/ArkDialog';
 import { createSignal, untrack } from 'solid-js';
-import { fetchCameras } from './shared';
+import { fetchCameras, setTab, tab } from './shared';
 import { toaster } from './ark/ArkToast';
 
 export default function AddCameraButton() {
@@ -33,7 +33,13 @@ export default function AddCameraButton() {
                 setName('');
                 setUri('');
                 setLabels('');
-                fetchCameras();
+                if (tab().type === 'home') {
+                    await fetchCameras();
+                } else {
+                    setTab({ type: 'home' }); // Redirect to home tab
+                }
+
+
             } else {
                 throw new Error('Failed to save camera');
             }
@@ -71,7 +77,7 @@ export default function AddCameraButton() {
                 <input
                     value={name()}
                     onInput={(e) => setName(e.currentTarget.value)}
-                    placeholder='Front Gate'
+                    placeholder='Workshop Camera'
                     type="text" id="camera-name" class="px-3 py-1.5 mt-1 block w-full rounded-lg bg-neu-850 border border-neu-750 text-white focus:outline-none placeholder:text-neu-500" />
             </div>
             <div>
@@ -79,7 +85,7 @@ export default function AddCameraButton() {
                 <input
                     value={uri()}
                     onInput={(e) => setUri(e.currentTarget.value)}
-                    placeholder='rtsp://localhost:8554/cam'
+                    placeholder='rtsp://user:pass@example.com:8554/live/camera1'
                     type="text" id="camera-url" class="px-3 py-1.5 mt-1 block w-full rounded-lg bg-neu-850 border border-neu-750 text-white focus:outline-none placeholder:text-neu-500" />
             </div>
             <div>

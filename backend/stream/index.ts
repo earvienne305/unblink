@@ -1,34 +1,9 @@
-import fs from "fs/promises";
-import type { AVPixelFormat, AVSampleFormat, CodecContext, Frame, Packet, Stream } from "node-av";
+import type { Frame, Packet } from "node-av";
 import {
     AV_CODEC_ID_AAC,
     AV_CODEC_ID_MJPEG,
-    AV_PIX_FMT_BGR24,
-    AV_PIX_FMT_BGR4,
-    AV_PIX_FMT_BGR4_BYTE,
-    AV_PIX_FMT_BGR8,
-    AV_PIX_FMT_GRAY8,
-    AV_PIX_FMT_MONOBLACK,
-    AV_PIX_FMT_MONOWHITE,
-    AV_PIX_FMT_PAL8,
-    AV_PIX_FMT_RGB24,
-    AV_PIX_FMT_RGB4,
-    AV_PIX_FMT_RGB4_BYTE,
-    AV_PIX_FMT_RGB8,
-    AV_PIX_FMT_UYVY422,
-    AV_PIX_FMT_UYYVYY411,
-    AV_PIX_FMT_YUV410P,
-    AV_PIX_FMT_YUV411P,
-    AV_PIX_FMT_YUV420P,
-    AV_PIX_FMT_YUV422P,
-    AV_PIX_FMT_YUV444P,
     AV_PIX_FMT_YUVJ420P,
-    AV_PIX_FMT_YUVJ422P,
-    AV_PIX_FMT_YUVJ444P,
-    AV_PIX_FMT_YUYV422,
     AV_SAMPLE_FMT_FLTP,
-    avGetCodecStringHls,
-    avGetMimeTypeDash,
     Decoder,
     Encoder,
     FF_ENCODER_AAC,
@@ -36,183 +11,19 @@ import {
     FilterAPI,
     FilterPreset,
     MediaInput,
-    MediaOutput,
-    Rational,
 } from "node-av";
-import path from "path";
 import { MOMENTS_DIR } from "~/backend/appdir";
 import { logger as _logger } from "~/backend/logger";
 import type { WorkerState } from "~/backend/worker/worker_state";
 import type { ServerToWorkerStreamMessage_Add_Stream, StreamMessage } from "~/shared";
+import { getCodecs, shouldSkipTranscode } from "./codec_utils";
+import { applyFrameTiming, calculatePTSTiming, createTimingState } from "./frame_timing";
+import { OutputFile, type OutputFileObject } from "./output_file";
+import { raceWithTimeout } from "./packet_utils";
+import { detectStreamType } from "./stream_detector";
 
 const logger = _logger.child({ worker: 'stream' });
 const MAX_SIZE = 720;
-
-function getCodecs(
-    width: number,
-    height: number,
-    videoStream: Stream,
-    audioStream: Stream | undefined,
-): StreamMessage {
-    const videoCodecString = avGetCodecStringHls(videoStream.codecpar);
-    const audioCodecString = audioStream
-        ? avGetCodecStringHls(audioStream.codecpar)
-        : null;
-
-    const codecStrings = audioCodecString
-        ? `${videoCodecString},${audioCodecString}`
-        : videoCodecString;
-
-    const mimeType = avGetMimeTypeDash(videoStream.codecpar);
-    const fullCodec = `${mimeType}; codecs="${codecStrings}"`;
-
-    const codecs: StreamMessage = {
-        type: "codec",
-        mimeType,
-        videoCodec: videoCodecString,
-        audioCodec: audioCodecString,
-        codecString: codecStrings,
-        fullCodec,
-        width,
-        height,
-        hasAudio: !!audioStream,
-    };
-
-    return codecs;
-}
-
-async function raceWithTimeout<T>(
-    promise: Promise<IteratorResult<T, any>>,
-    abortSignal: AbortSignal,
-    ms: number
-): Promise<IteratorResult<T, any> | undefined> {
-    let timeoutId: NodeJS.Timeout | undefined = undefined;
-
-    const timeoutPromise = new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => {
-            logger.warn('Timeout receiving packets');
-            reject(new Error('Timeout receiving packets'));
-        }, ms);
-    });
-
-    const abort_promise = new Promise<never>((_, reject) => {
-        if (abortSignal.aborted) {
-            return reject(new DOMException('Aborted', 'AbortError'));
-        }
-        abortSignal.addEventListener('abort', () => {
-            reject(new DOMException('Aborted', 'AbortError'));
-        }, { once: true });
-    });
-
-    try {
-        const result = await Promise.race([promise, timeoutPromise, abort_promise]);
-        return result as IteratorResult<T, any>;
-    } finally {
-        clearTimeout(timeoutId);
-    }
-}
-
-function shouldSkipTranscode(videoStream: Stream): boolean {
-    const SUPPORTED_FORMATS: (AVPixelFormat | AVSampleFormat)[] = [
-        AV_PIX_FMT_YUV420P,
-        AV_PIX_FMT_YUYV422,
-        AV_PIX_FMT_RGB24,
-        AV_PIX_FMT_BGR24,
-        AV_PIX_FMT_YUV422P,
-        AV_PIX_FMT_YUV444P,
-        AV_PIX_FMT_YUV410P,
-        AV_PIX_FMT_YUV411P,
-        AV_PIX_FMT_GRAY8,
-        AV_PIX_FMT_MONOWHITE,
-        AV_PIX_FMT_MONOBLACK,
-        AV_PIX_FMT_PAL8,
-        AV_PIX_FMT_YUVJ420P,
-        AV_PIX_FMT_YUVJ422P,
-        AV_PIX_FMT_YUVJ444P,
-        AV_PIX_FMT_UYVY422,
-        AV_PIX_FMT_UYYVYY411,
-        AV_PIX_FMT_BGR8,
-        AV_PIX_FMT_BGR4,
-        AV_PIX_FMT_BGR4_BYTE,
-        AV_PIX_FMT_RGB8,
-        AV_PIX_FMT_RGB4,
-        AV_PIX_FMT_RGB4_BYTE
-    ];
-
-    const isMjpeg = videoStream.codecpar.codecId === AV_CODEC_ID_MJPEG;
-    const hasCompatibleFormat = SUPPORTED_FORMATS.includes(videoStream.codecpar.format);
-
-    return isMjpeg && hasCompatibleFormat;
-}
-
-type OutputFileObject = {
-    output_id: string;
-    from: Date;
-    mediaOutput: MediaOutput;
-    videoFileOutputIndex: number;
-    path: string;
-    startTime: number | null; // Wall-clock time when first frame was written (ms)
-};
-
-class OutputFile {
-    static async create(mediaId: string, output_id: string, codecContext: CodecContext, output_type_dir: string): Promise<OutputFileObject> {
-        const from = new Date();
-        const dir = path.join(output_type_dir, mediaId);
-        await fs.mkdir(dir, { recursive: true });
-        const filePath = path.join(dir, `${mediaId}_from_${from.getTime()}_ms.mkv`);
-
-        const mediaOutput = await MediaOutput.open(filePath, {
-            format: 'matroska',
-        });
-
-        // Manually add stream to bypass addStream's check on initialized encoders
-        const ctx = mediaOutput.getFormatContext();
-        if (!ctx) {
-            throw new Error("Failed to get format context");
-        }
-
-        const stream = ctx.newStream(null);
-        if (!stream) {
-            throw new Error("Failed to create output stream");
-        }
-
-        // Copy codec parameters
-        stream.codecpar.fromContext(codecContext);
-        // Use millisecond timebase for moment clips (matches our timestamp generation)
-        stream.timeBase = new Rational(1, 1000);
-
-        // Write header immediately
-        await mediaOutput.getFormatContext().writeHeader();
-
-        return { output_id, from, mediaOutput, videoFileOutputIndex: stream.index, path: filePath, startTime: null };
-    }
-
-    static async close(obj: OutputFileObject): Promise<string> {
-        // Manually write trailer since we bypassed MediaOutput's internal state
-        await obj.mediaOutput.getFormatContext().writeTrailer();
-        await obj.mediaOutput.close();
-
-        // Rename to have closed_at timestamp
-        const to = new Date();
-        const mediaId = path.basename(obj.path).split('_from_')[0];
-        const newName = `${mediaId}_from_${obj.from.getTime()}_ms_to_${to.getTime()}_ms.mkv`;
-        const newPath = path.join(path.dirname(obj.path), newName);
-        await fs.rename(obj.path, newPath);
-        logger.info({ old: obj.path, new: newPath }, "Closed output file");
-        return newPath;
-    }
-
-    static async discard(obj: OutputFileObject) {
-        // Just close without writing trailer since we are deleting
-        await obj.mediaOutput.close();
-        try {
-            await fs.unlink(obj.path);
-            // logger.info({ path: obj.path }, "Deleted false alarm moment file");
-        } catch (error) {
-            logger.error({ error, path: obj.path }, "Failed to delete false alarm moment file");
-        }
-    }
-}
 
 export async function streamMedia(
     startArg: ServerToWorkerStreamMessage_Add_Stream,
@@ -393,22 +204,8 @@ export async function streamMedia(
         input.seekSync(startArg.init_seek_sec);
     }
 
-    /**
-     * Determine stream type and timing strategy:
-     * - 'file': File-based sources (includes both ephemeral and continuous feeds)
-     *           Uses dual-delay system for smooth playback at native frame rate
-     * - 'live': RTSP/HTTP live streams - uses simple FPS throttling
-     */
-    const isFileSource = await (async () => {
-        try {
-            await fs.access(startArg.uri);
-            return true;
-        } catch {
-            return false;
-        }
-    })();
-
-    const timeSyncType: 'file' | 'live' = (isFileSource || startArg.is_ephemeral) ? 'file' : 'live';
+    // Detect stream type (live vs file-based)
+    const timeSyncType = startArg.is_ephemeral ? 'file' : await detectStreamType(startArg.uri, input);
 
     logger.info({ 
         uri: startArg.uri, 
@@ -419,93 +216,8 @@ export async function streamMedia(
 
     const packets = input.packets();
     
-    // Frame timing state
-    // Calculate target frame interval with validation
-    let targetFrameIntervalMs = (videoStream.avgFrameRate.den * 1000) / videoStream.avgFrameRate.num;
-    if (!isFinite(targetFrameIntervalMs) || targetFrameIntervalMs <= 0) {
-        logger.warn({ 
-            avgFrameRate: videoStream.avgFrameRate,
-            calculated: targetFrameIntervalMs 
-        }, "Invalid frame rate detected, defaulting to 30 FPS");
-        targetFrameIntervalMs = 1000 / 30; // Default to 30 FPS
-    }
-    
-    const timingState = {
-        firstPacketPts: null as bigint | null,
-        playbackStartTime: 0,
-        lastFrameSendTime: 0,
-        lastLiveStreamSendTime: 0,
-        targetFrameIntervalMs,
-    };
-
-    /**
-     * Calculate timing information based on PTS (Presentation Time Stamp)
-     * Converts PTS to real-world milliseconds using the stream's timebase
-     */
-    const calculatePTSTiming = (packet: Packet) => {
-        if (timingState.firstPacketPts === null) return null;
-        
-        const ptsDiff = packet.pts - timingState.firstPacketPts;
-        const elapsedFileTimeMs = Number(ptsDiff) * videoStream.timeBase.num * 1000 / videoStream.timeBase.den;
-        const targetTime = timingState.playbackStartTime + elapsedFileTimeMs;
-        
-        return { elapsedFileTimeMs, targetTime };
-    };
-
-    /**
-     * Apply frame timing strategy based on stream type
-     * @param beforeProcessing - true for pre-processing delays, false for post-processing delays
-     * @returns 'skip' if frame should be skipped (live stream throttling), undefined otherwise
-     */
-    const applyFrameTiming = async (packet: Packet, beforeProcessing: boolean): Promise<'skip' | undefined> => {
-        // Initialize timing on first frame for file-based streams
-        if (timingState.firstPacketPts === null && timeSyncType === 'file') {
-            timingState.firstPacketPts = packet.pts;
-            timingState.playbackStartTime = Date.now();
-            logger.debug({ pts: packet.pts, timeSyncType }, "Starting timed playback");
-            return;
-        }
-
-        if (timeSyncType === 'live') {
-            // Live streams: Simple 30 FPS throttling (no PTS timing needed)
-            const now = Date.now();
-            if (now - timingState.lastLiveStreamSendTime < 1000 / 30) {
-                return 'skip';
-            }
-            timingState.lastLiveStreamSendTime = now;
-        } else if (timeSyncType === 'file') {
-            // File streams: Dual-delay system for smooth continuous streaming
-            // Works for both ephemeral (moment playback) and continuous camera feeds
-            if (beforeProcessing && timingState.lastFrameSendTime > 0) {
-                // Pre-processing: Prevent frame bursts by enforcing minimum interval
-                const timeSinceLastFrame = Date.now() - timingState.lastFrameSendTime;
-                if (timeSinceLastFrame < timingState.targetFrameIntervalMs) {
-                    const preDelay = timingState.targetFrameIntervalMs - timeSinceLastFrame;
-                    // Cap delay to reasonable maximum (5 seconds) to prevent overflow
-                    const cappedDelay = Math.min(preDelay, 5000);
-                    if (cappedDelay > 0 && isFinite(cappedDelay)) {
-                        await new Promise(resolve => setTimeout(resolve, cappedDelay));
-                    }
-                }
-            } else if (!beforeProcessing) {
-                // Post-processing: Fine-tune timing with PTS for accuracy
-                const timing = calculatePTSTiming(packet);
-                if (timing) {
-                    const delay = timing.targetTime - Date.now();
-                    if (delay > 0) {
-                        // Cap delay to reasonable maximum (5 seconds) to prevent overflow
-                        const cappedDelay = Math.min(delay, 5000);
-                        if (isFinite(cappedDelay)) {
-                            await new Promise(resolve => setTimeout(resolve, cappedDelay));
-                        }
-                    } else if (delay < -100) {
-                        logger.debug({ delay, pts: packet.pts }, "File playback running behind schedule");
-                    }
-                }
-                timingState.lastFrameSendTime = Date.now();
-            }
-        }
-    };
+    // Initialize frame timing state
+    const timingState = createTimingState(videoStream);
 
     logger.info("Entering main streaming loop");
 
@@ -574,7 +286,7 @@ export async function streamMedia(
             }
 
             // Apply pre-processing timing
-            const shouldSkip = await applyFrameTiming(packet, true);
+            const shouldSkip = await applyFrameTiming(packet, true, timeSyncType, timingState, videoStream);
             if (shouldSkip === 'skip') {
                 packet.free();
                 decodedFrame.free();
@@ -585,7 +297,7 @@ export async function streamMedia(
                 // Calculate timestamp for ephemeral streams (for UI progress)
                 let timestamp: number | undefined;
                 if (startArg.is_ephemeral) {
-                    const timing = calculatePTSTiming(packet);
+                    const timing = calculatePTSTiming(packet, timingState, videoStream);
                     if (timing) {
                         timestamp = (startArg.init_seek_sec || 0) * 1000 + timing.elapsedFileTimeMs;
                     }
@@ -594,7 +306,7 @@ export async function streamMedia(
                 await processPacket(packet, decodedFrame, timestamp);
                 
                 // Apply post-processing timing
-                await applyFrameTiming(packet, false);
+                await applyFrameTiming(packet, false, timeSyncType, timingState, videoStream);
             } catch (error) {
                 logger.error({ error: (error as Error).message }, "Error processing packet");
             } finally {

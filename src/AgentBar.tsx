@@ -1,7 +1,6 @@
 import { formatDistance } from "date-fns";
 import { FaSolidChevronLeft, FaSolidChevronRight } from "solid-icons/fa";
 import { For, Show, createSignal } from "solid-js";
-import type { MediaUnit } from "~/shared";
 import LoadingSkeleton from "./search/LoadingSkeleton";
 import { cameras, relevantAgentCards } from "./shared";
 
@@ -14,7 +13,7 @@ export function useAgentBar() {
             <Show when={showAgentBar()} fallback={<FaSolidChevronLeft class="w-4 h-4 " />}>
                 <FaSolidChevronRight class="w-4 h-4 " />
             </Show>
-            <div>Agent</div>
+            <div>Agents</div>
 
         </button>
     return {
@@ -41,13 +40,22 @@ export function useAgentBar() {
                                         return camera ? camera.name : 'Unknown Stream';
                                     }
                                     return <div class="animate-push-down p-4 bg-neu-850 rounded-2xl space-y-2">
-                                        <div class="font-semibold">{stream_name()}</div>
+                                        <div class="flex items-center justify-between">
+                                            <div class="font-semibold">{stream_name()}</div>
+                                            <Show when={card.agent_name}>
+                                                <div class="text-xs px-2 py-1 bg-neu-800 rounded-lg text-neu-300 font-medium">
+                                                    {card.agent_name}
+                                                </div>
+                                            </Show>
+                                        </div>
                                         <div class="text-neu-400 text-sm">{formatDistance(card.at_time, Date.now(), {
                                             addSuffix: true,
                                             includeSeconds: true
                                         })}</div>
-                                        <div>{card.description}</div>
-                                        <img src={`/files?path=${card.path}`} class="rounded-lg" />
+                                        <div>{card.content}</div>
+                                        <Show when={card.path}>
+                                            <img src={`/files?path=${card.path}`} class="rounded-lg" />
+                                        </Show>
                                     </div>
                                 }}
                             </For>

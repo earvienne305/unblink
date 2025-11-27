@@ -50,6 +50,14 @@ export interface Agent {
     instruction: string;
 }
 
+export interface AgentResponse {
+    id: string;
+    agent_id: string;
+    media_unit_id: string;
+    content: string;
+    created_at: number;
+}
+
 export interface Moment {
     id: string;
     media_id: string;

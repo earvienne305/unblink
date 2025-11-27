@@ -1,9 +1,8 @@
 import { For, Show, createEffect, createSignal, onCleanup } from "solid-js";
-import type { RESTQuery, MediaUnit } from "~/shared";
 import ActivityBar from "./ActivityBar";
 import CanvasVideo from "./CanvasVideo";
 import ConfigureViewDialog from "./ConfigureViewDialog";
-import { cameras, setAgentCards, setSubscription, settings, tab } from "./shared";
+import { cameras, setSubscription, settings, viewedMedias } from "./shared";
 import { useAgentBar } from "./AgentBar";
 
 const GAP_SIZE = '8px';
@@ -22,13 +21,6 @@ const chunk = <T,>(arr: T[]): T[][] => {
 export default function ViewContent() {
     const [showDetections, setShowDetections] = createSignal(true);
 
-
-    const viewedMedias = () => {
-        const t = tab();
-        return t.type === 'view' ? t.medias : [];
-    }
-
-
     // Handle subscriptions
     createEffect(() => {
         const medias = viewedMedias();
@@ -44,47 +36,6 @@ export default function ViewContent() {
             setSubscription();
         }
     });
-
-    createEffect(async () => {
-        // Get relevant media units for those streams
-        const medias = viewedMedias();
-        setAgentCards([]); // Clear agent cards when viewed medias change   
-        if (!medias || medias.length === 0) {
-            return;
-        }
-
-        console.log('Viewing medias changed, current medias:', medias);
-
-        const resp = await fetch('/query', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                query: {
-                    table: 'media_units',
-                    where: [{
-                        'field': 'media_id', 'op': 'in', 'value': medias.map(m => m.media_id),
-                    }, {
-                        'field': 'description', 'op': 'is_not', 'value': null
-                    }],
-                    select: ['id', 'media_id', 'at_time', 'description', 'path', 'type'],
-                    limit: 20,
-                    order_by: { field: 'at_time', direction: 'DESC' }
-                } as RESTQuery,
-            }),
-        });
-
-        if (resp.ok) {
-            const data = await resp.json() as { media_units: MediaUnit[] };
-            console.log('data.media_units', data.media_units.length)
-            setAgentCards([...data.media_units]);
-
-            console.log('Fetched media units for viewed medias:', data);
-        } else {
-            console.error('Failed to fetch media units for viewed medias');
-        }
-    })
 
     const cols = () => {
 

@@ -2,6 +2,19 @@ import type { MediaUnit, User } from "./database";
 import type { RemoteJob, WorkerOutput__Segmentation, WorkerRequest } from "./engine";
 export * from "./database";
 
+// AgentCard - abstract construct from media units or agent responses
+export type AgentCard = {
+    id: string;
+    content: string;
+    media_id: string;
+    media_unit_id?: string;
+    at_time: number;
+    agent_id?: string;
+    agent_name?: string;
+    path?: string;
+    type?: string;
+}
+
 // Frame stats message - calculated on backend from frame_motion_energy
 export type FrameStatsMessage = {
     type: "frame_stats";
@@ -74,10 +87,9 @@ export type ClientToServerMessage = {
 export type WorkerToServerMessage =
     // WorkerObjectDetectionToServerMessage | 
     WorkerStreamToServerMessage
-export type ServerToClientMessage = (WorkerToServerMessage | SegmentationMessage | FrameStatsMessage | {
+export type ServerToClientMessage = (WorkerToServerMessage | SegmentationMessage | FrameStatsMessage | (AgentCard & {
     type: 'agent_card';
-    media_unit: MediaUnit;
-}) & {
+})) & {
     session_id?: string;
 }
 

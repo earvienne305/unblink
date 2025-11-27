@@ -7,19 +7,19 @@ export async function onboardMedia(db: Database) {
         table: 'media',
         entries: [
             {
-                name: "Building Top",
-                uri: "/home/tri/test_videos/1.mp4",
-                labels: ["Urban"]
+                name: "St. Catherine's School",
+                uri: "https://bucket.zapdoslabs.com/st_catherine_school.mp4",
+                labels: ["Excavation"]
             },
             {
-                name: "Panama Port",
-                uri: "/home/tri/test_videos/2.mp4",
-                labels: ["Transportation Hub"]
+                name: "Home Construction Site",
+                uri: "https://bucket.zapdoslabs.com/home.mp4",
+                labels: ["Remodeling"]
             },
             {
-                name: "Parking Lot",
-                uri: "/home/tri/test_videos/3.mp4",
-                labels: ["Urban"]
+                name: "National Museum",
+                uri: "https://bucket.zapdoslabs.com/museum.mp4",
+                labels: ["Remodeling"]
             },
         ],
         statement: `

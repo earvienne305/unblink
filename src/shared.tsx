@@ -1,8 +1,10 @@
 import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
-import type { ClientToServerMessage, FrameStatsMessage, ServerToClientMessage, Subscription, ClientUser } from "~/shared";
+import type { ClientToServerMessage, FrameStatsMessage, ServerToClientMessage, Subscription, ClientUser, AgentCard } from "~/shared";
 import type { Conn } from "~/shared/Conn";
 import type { MediaUnit, Agent } from "~/shared";
+
+export type { AgentCard };
 
 export type Camera = {
     id: string;
@@ -119,15 +121,17 @@ export const fetchAgents = async () => {
     }
 };
 
-export const [agentCards, setAgentCards] = createSignal<MediaUnit[]>([]);
+export const [agentCards, setAgentCards] = createSignal<AgentCard[]>([]);
+
+export const viewedMedias = () => {
+    const t = tab();
+    return t.type === 'view' ? t.medias : [];
+}
+
 export const relevantAgentCards = () => {
-    const viewedMedias = () => {
-        const t = tab();
-        return t.type === 'view' ? t.medias : [];
-    }
     const cards = agentCards();
     // newest first
-    const relevant_cards = cards.filter(c => viewedMedias().some(media => media.media_id === c.media_id)).toSorted((a, b) => new Date(b.at_time).getTime() - new Date(a.at_time).getTime());
+    const relevant_cards = cards.filter(c => viewedMedias().some(media => media.media_id === c.media_id)).toSorted((a, b) => b.at_time - a.at_time);
 
     return relevant_cards;
 }

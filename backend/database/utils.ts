@@ -1,6 +1,6 @@
 import type { Database } from '@tursodatabase/database';
 import { getDb } from './database';
-import type { Media, MediaUnit, Secret, Session, Setting, User, Agent, Moment } from '~/shared/database';
+import type { Media, MediaUnit, Secret, Session, Setting, User, Agent, Moment, AgentResponse } from '~/shared/database';
 import type { RESTQuery } from '~/shared';
 
 
@@ -587,4 +587,38 @@ export async function deleteAgent(id: string): Promise<void> {
     const db = await getDb();
     const stmt = db.prepare('DELETE FROM agents WHERE id = ?');
     await stmt.run(id);
+}
+
+// Agent Response functions
+export async function createAgentResponse(agentResponse: AgentResponse): Promise<void> {
+    const db = await getDb();
+    const stmt = db.prepare(`
+        INSERT INTO agent_responses (id, agent_id, media_unit_id, content, created_at)
+        VALUES (?, ?, ?, ?, ?)
+    `);
+    await stmt.run(
+        agentResponse.id,
+        agentResponse.agent_id,
+        agentResponse.media_unit_id,
+        agentResponse.content,
+        agentResponse.created_at
+    );
+}
+
+export async function getAgentResponsesByMediaUnit(media_unit_id: string): Promise<AgentResponse[]> {
+    const db = await getDb();
+    const stmt = db.prepare('SELECT * FROM agent_responses WHERE media_unit_id = ? ORDER BY created_at DESC');
+    return await stmt.all(media_unit_id) as AgentResponse[];
+}
+
+export async function getAgentResponsesByAgent(agent_id: string): Promise<AgentResponse[]> {
+    const db = await getDb();
+    const stmt = db.prepare('SELECT * FROM agent_responses WHERE agent_id = ? ORDER BY created_at DESC');
+    return await stmt.all(agent_id) as AgentResponse[];
+}
+
+export async function getAgentResponseById(id: string): Promise<AgentResponse | undefined> {
+    const db = await getDb();
+    const stmt = db.prepare('SELECT * FROM agent_responses WHERE id = ?');
+    return await stmt.get(id) as AgentResponse | undefined;
 }
